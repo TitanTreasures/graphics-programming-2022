@@ -1,9 +1,10 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-
+#include <glm/glm.hpp>
 #include <iostream>
 #include <vector>
 #include <cmath>
+#define PI 3.14159265
 
 
 // function declarations
@@ -144,7 +145,7 @@ int main()
 
         // render
         // ------
-        glClearColor(.2f, .2f, .2f, 1.0f); // background
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // background
         glClear(GL_COLOR_BUFFER_BIT); // clear the framebuffer
 
         draw(shaderProgram, VAO, vertexCount);
@@ -178,23 +179,54 @@ void createArrayBuffer(const std::vector<float> &array, unsigned int &VBO){
 // -------------------------------------------------------------------------------------------------------
 void setupShape(const unsigned int shaderProgram,unsigned int &VAO, unsigned int &vertexCount){
 
-    unsigned int posVBO, colorVBO;
-    createArrayBuffer(std::vector<float>{
-            // position
-            0.0f,  0.0f, 0.0f,
-            0.5f,  0.0f, 0.0f,
-            0.5f,  0.5f, 0.0f
-    }, posVBO);
 
-    createArrayBuffer( std::vector<float>{
-            // color
-            1.0f,  0.0f, 0.0f,
-            1.0f,  0.0f, 0.0f,
-            1.0f,  0.0f, 0.0f
-    }, colorVBO);
+    std::vector<float> positions;
+    int triangles = 30;
+    float angle = 360.0f / triangles;
+    for (int i = 0; i < triangles; i++) {
+        positions.push_back(0.0f);
+        positions.push_back(0.0f);
+        positions.push_back(0.0f);
+        positions.push_back(((float)cos(glm::radians(i * angle)))/2);
+        positions.push_back(((float)sin(glm::radians(i * angle)))/2);
+        positions.push_back(0.0f);
+        positions.push_back(((float)cos(glm::radians((i+1) * angle)))/2);
+        positions.push_back(((float)sin(glm::radians((i+1) * angle)))/2);
+        positions.push_back(0.0f);
+    }
+
+    std::vector<float> colours;
+    std::vector<float> rgb{0.0f,0.0f,0.0f};
+    int j = 0;
+    for (int i = 0; i < triangles; i++) {
+        if (j>=3) {
+            j = 0;
+        }
+
+        rgb[j] += 0.1f;
+        if (rgb[j] > 1.0f) {
+            rgb[j] = 0.0f;
+            j++;
+        }
+
+        colours.push_back(0);
+        colours.push_back(0);
+        colours.push_back(0);
+        colours.push_back(rgb[0]);
+        colours.push_back(rgb[1]);
+        colours.push_back(rgb[2]);
+        colours.push_back(rgb[0]);
+        colours.push_back(rgb[1]);
+        colours.push_back(rgb[2]);
+    }
+
+    unsigned int posVBO, colorVBO;
+    createArrayBuffer(positions, posVBO);
+
+    createArrayBuffer(colours, colorVBO);
 
     // tell how many vertices to draw
-    vertexCount = 3;
+    vertexCount = triangles*3;
 
     // create a vertex array object (VAO) on OpenGL and save a handle to it
     glGenVertexArrays(1, &VAO);

@@ -1,29 +1,37 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-
 #include <iostream>
 #include <vector>
 #include <cmath>
-
+#include <glm/trigonometric.hpp>
+#include <string>
+#include <iomanip>
 
 // function declarations
 // ---------------------
 void createArrayBuffer(const std::vector<float> &array, unsigned int &VBO);
 void setupShape(unsigned int shaderProgram, unsigned int &VAO, unsigned int &vertexCount);
 void draw(unsigned int shaderProgram, unsigned int VAO, unsigned int vertexCount);
-
+void FPSUpdate();
 
 // glfw functions
 // --------------
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
-void processInput(GLFWwindow *window);
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
-
-// settings
+// variables
 // --------
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 800;
+const char* windowName = "LearnOpenGL ";
+GLFWwindow* window;
+bool showWireframe = false;
 
+// FPS variables
+double prevTime = 0.0;
+double crntTime = 0.0;
+double timeDiff;
+unsigned int counter = 0;
 
 // shader programs
 // ---------------
@@ -44,11 +52,8 @@ const char *fragmentShaderSource = "#version 330 core\n"
                                    "   FragColor = vec4(vtxColor, 1.0);\n"
                                    "}\n\0";
 
-
-
 int main()
 {
-
     // glfw: initialize and configure
     // ------------------------------
     glfwInit();
@@ -60,10 +65,9 @@ int main()
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // uncomment this statement to fix compilation on OS X
 #endif
 
-
     // glfw window creation
     // --------------------
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
+    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, windowName, NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -72,7 +76,7 @@ int main()
     }
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
-
+    glfwSetKeyCallback(window, key_callback);
 
     // glad: load all OpenGL function pointers
     // ---------------------------------------
@@ -81,7 +85,6 @@ int main()
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
-
 
     // build and compile our shader program
     // ------------------------------------
@@ -126,28 +129,130 @@ int main()
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
+    int triangles = 300;
+    float split = 1.0f / ((float)triangles / 3.0f);
+    std::cout << split << std::endl;
+    float angle = 360.0f / triangles;
+    std::vector<float> vertices;
+    std::vector<float> rgb{ 0.0f,0.0f,0.0f };
 
-    // setup vertex array object (VAO)
-    // -------------------------------
-    unsigned int VAO, vertexCount;
-    // generate geometry in a vertex array object (VAO), record the number of vertices in the mesh,
-    // tells the shader how to read it
-    setupShape(shaderProgram, VAO, vertexCount);
+        vertices.push_back(0.0f);
+        vertices.push_back(0.0f);
+        vertices.push_back(0.0f);
+        vertices.push_back(0.0f);
+        vertices.push_back(0.0f);
+        vertices.push_back(0.0f);
 
+    int j = 0;
+    for (int i = 0; i < triangles; i++) {
+        if (j >= 3) {
+            j = 0;
+        }
+
+        rgb[j] += split;
+        if (rgb[j] > 1.0f) {
+            rgb[j] = 0.0f;
+            j++;
+        }
+
+        vertices.push_back(((float)cos(glm::radians(i * angle))) / 2);
+        vertices.push_back(((float)sin(glm::radians(i * angle))) / 2);
+        vertices.push_back(0.0f);
+        vertices.push_back(rgb[0]);
+        vertices.push_back(rgb[1]);
+        vertices.push_back(rgb[2]);
+    }
+
+    std::vector<unsigned int> indices;
+    for (int i = 0; i < triangles; i++) {
+        indices.push_back(0);
+        float index = i + 1;
+        indices.push_back(index);
+        index++;
+        if (index > triangles) {
+            index = 1;
+        }
+        indices.push_back(index);
+    }    
+
+    //std::vector<float> indicesData;
+    //for (int i = 0; i < vertices.size(); i++) {
+
+    //    auto it = find(indicesData.begin(), indicesData.end(), vertices[i]);
+
+    //    if (it != indicesData.end())
+    //    {
+    //        int index = it - indicesData.begin();
+    //        indices.push_back(index);
+    //    }
+    //    else {
+    //        indicesData.push_back(vertices[i]);
+    //        int index = indicesData.size() - 1;
+    //        indices.push_back(index);
+    //    }
+    //}
+
+    unsigned int EBO, VAO, VBO, vertexCount;
+
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glGenBuffers(1, &EBO);
+
+    glBindVertexArray(VAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, (vertices.size() * sizeof(GLfloat)), &vertices[0], GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, (indices.size() * sizeof(GLfloat)), &indices[0], GL_STATIC_DRAW);
+
+    vertexCount = vertices.size()/6;
+
+    int posSize = 3;
+    int colorSize = 3;
+    int posAttributeLocation = glGetAttribLocation(shaderProgram, "aPos");
+    int colorAttributeLocation = glGetAttribLocation(shaderProgram, "aColor");
+
+    glEnableVertexAttribArray(posAttributeLocation);
+    glEnableVertexAttribArray(colorAttributeLocation);
+
+    glVertexAttribPointer(posAttributeLocation, posSize, GL_FLOAT, GL_FALSE, (sizeof(GLfloat) * posSize) + (sizeof(GLfloat) * colorSize), 0);
+    glVertexAttribPointer(colorAttributeLocation, colorSize, GL_FLOAT, GL_FALSE, (sizeof(GLfloat) * posSize) + (sizeof(GLfloat) * colorSize), (void*)(sizeof(GLfloat) * posSize));
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window)) {
-        // input
-        // -----
-        processInput(window);
+
+        FPSUpdate();
 
         // render
         // ------
-        glClearColor(.2f, .2f, .2f, 1.0f); // background
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // background
         glClear(GL_COLOR_BUFFER_BIT); // clear the framebuffer
 
-        draw(shaderProgram, VAO, vertexCount);
+        // rotate all the vertices data
+        float rotationSpeed = 1.0f;
+        for (int i = 6; i < vertices.size(); i += 6) {
+            float newX = 0 + (vertices[i] - 0) * cos(glm::radians(rotationSpeed)) - (vertices[i + 1] - 0) * sin(glm::radians(rotationSpeed));
+            float newY = 0 + (vertices[i] - 0) * sin(glm::radians(rotationSpeed)) + (vertices[i + 1] - 0) * cos(glm::radians(rotationSpeed));
+            vertices[i] = newX;
+            vertices[i + 1] = newY;
+        }
+
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(GL_ARRAY_BUFFER, (vertices.size() * sizeof(GLfloat)), &vertices[0], GL_STATIC_DRAW);
+
+        // set active shader program
+        glUseProgram(shaderProgram);
+        // bind vertex array object
+        glBindVertexArray(VAO);
+        // draw geometry
+        //glDrawArrays(GL_TRIANGLES, 0, vertexCount);
+        glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -157,92 +262,52 @@ int main()
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+    glDeleteBuffers(1, &EBO);
+    glfwDestroyWindow(window);
     glfwTerminate();
     return 0;
 }
 
-
-// create a vertex buffer object (VBO) from an array of values, return VBO handle (set as reference)
-// -------------------------------------------------------------------------------------------------
-void createArrayBuffer(const std::vector<float> &array, unsigned int &VBO){
-    // create the VBO on OpenGL and get a handle to it
-    glGenBuffers(1, &VBO);
-    // bind the VBO
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    // set the content of the VBO (type, size, pointer to start, and how it is used)
-    glBufferData(GL_ARRAY_BUFFER, array.size() * sizeof(GLfloat), &array[0], GL_STATIC_DRAW);
-}
-
-
-// create the geometry, a vertex array object representing it, and set how a shader program should read it
-// -------------------------------------------------------------------------------------------------------
-void setupShape(const unsigned int shaderProgram,unsigned int &VAO, unsigned int &vertexCount){
-
-    unsigned int posVBO, colorVBO;
-    createArrayBuffer(std::vector<float>{
-            // position
-            0.0f,  0.0f, 0.0f,
-            0.5f,  0.0f, 0.0f,
-            0.5f,  0.5f, 0.0f
-    }, posVBO);
-
-    createArrayBuffer( std::vector<float>{
-            // color
-            1.0f,  0.0f, 0.0f,
-            1.0f,  0.0f, 0.0f,
-            1.0f,  0.0f, 0.0f
-    }, colorVBO);
-
-    // tell how many vertices to draw
-    vertexCount = 3;
-
-    // create a vertex array object (VAO) on OpenGL and save a handle to it
-    glGenVertexArrays(1, &VAO);
-
-    // bind vertex array object
-    glBindVertexArray(VAO);
-
-    // set vertex shader attribute "aPos"
-    glBindBuffer(GL_ARRAY_BUFFER, posVBO);
-
-    int posSize = 3;
-    int posAttributeLocation = glGetAttribLocation(shaderProgram, "aPos");
-
-    glEnableVertexAttribArray(posAttributeLocation);
-    glVertexAttribPointer(posAttributeLocation, posSize, GL_FLOAT, GL_FALSE, 0, 0);
-
-    // set vertex shader attribute "aColor"
-    glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
-
-    int colorSize = 3;
-    int colorAttributeLocation = glGetAttribLocation(shaderProgram, "aColor");
-
-    glEnableVertexAttribArray(colorAttributeLocation);
-    glVertexAttribPointer(colorAttributeLocation, colorSize, GL_FLOAT, GL_FALSE, 0, 0);
-
-}
-
-
-// tell opengl to draw a vertex array object (VAO) using a give shaderProgram
-// --------------------------------------------------------------------------
-void draw(const unsigned int shaderProgram, const unsigned int VAO, const unsigned int vertexCount){
-    // set active shader program
-    glUseProgram(shaderProgram);
-    // bind vertex array object
-    glBindVertexArray(VAO);
-    // draw geometry
-    glDrawArrays(GL_TRIANGLES, 0, vertexCount);
-}
-
-
-// process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
-// ---------------------------------------------------------------------------------------------------------
-void processInput(GLFWwindow *window)
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+
+    if (key == GLFW_KEY_W && action == GLFW_PRESS) {
+        showWireframe = !showWireframe;
+        if (showWireframe) {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        }
+        else
+        {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        }
+    }
 }
 
+void FPSUpdate()
+{
+    // Updates counter and times
+    crntTime = glfwGetTime();
+    timeDiff = crntTime - prevTime;
+    counter++;
+
+    if (timeDiff >= 1.0 / 30.0)
+    {
+        // Creates new title
+        std::setprecision(2);
+        int FPS = (1.0 / timeDiff) * counter;
+        int ms = (timeDiff / counter) * 1000;
+        std::string newTitle = windowName + std::to_string(FPS) + " FPS / " + std::to_string(ms) + " ms";
+        glfwSetWindowTitle(window, newTitle.c_str());
+
+        // Resets times and counter
+        prevTime = crntTime;
+        counter = 0;
+    }
+}
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
 // ---------------------------------------------------------------------------------------------

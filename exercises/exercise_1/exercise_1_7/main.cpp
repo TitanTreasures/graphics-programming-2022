@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
+#include <glm/trigonometric.hpp>
 
 
 // function declarations
@@ -126,14 +127,71 @@ int main()
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
+    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-    // setup vertex array object (VAO)
-    // -------------------------------
-    unsigned int VAO, vertexCount;
-    // generate geometry in a vertex array object (VAO), record the number of vertices in the mesh,
-    // tells the shader how to read it
-    setupShape(shaderProgram, VAO, vertexCount);
 
+    int triangles = 30;
+    float angle = 360.0f / triangles;
+    std::vector<float> vertices;
+    std::vector<float> rgb{ 0.0f,0.0f,0.0f };
+    int j = 0;
+    for (int i = 0; i < triangles; i++) {
+        if (j >= 3) {
+            j = 0;
+        }
+
+        rgb[j] += 0.1f;
+        if (rgb[j] > 1.0f) {
+            rgb[j] = 0.0f;
+            j++;
+        }
+
+        vertices.push_back(0.0f);
+        vertices.push_back(0.0f);
+        vertices.push_back(0.0f);
+        vertices.push_back(0.0f);
+        vertices.push_back(0.0f);
+        vertices.push_back(0.0f);
+        vertices.push_back(((float)cos(glm::radians(i * angle))) / 2);
+        vertices.push_back(((float)sin(glm::radians(i * angle))) / 2);
+        vertices.push_back(0.0f);
+        vertices.push_back(rgb[0]);
+        vertices.push_back(rgb[1]);
+        vertices.push_back(rgb[2]);
+        vertices.push_back(((float)cos(glm::radians((i + 1) * angle))) / 2);
+        vertices.push_back(((float)sin(glm::radians((i + 1) * angle))) / 2);
+        vertices.push_back(0.0f);
+        vertices.push_back(rgb[0]);
+        vertices.push_back(rgb[1]);
+        vertices.push_back(rgb[2]);
+    }
+
+    unsigned int VAO, VBO, vertexCount;
+
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+    glBufferData(GL_ARRAY_BUFFER, (vertices.size() * sizeof(GLfloat)), 0, GL_STATIC_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, (vertices.size() * sizeof(GLfloat)), &vertices[0]);
+
+    vertexCount = triangles * 3;
+
+    int posSize = 3;
+    int colorSize = 3;
+    int posAttributeLocation = glGetAttribLocation(shaderProgram, "aPos");
+    int colorAttributeLocation = glGetAttribLocation(shaderProgram, "aColor");
+
+    glEnableVertexAttribArray(posAttributeLocation);
+    glEnableVertexAttribArray(colorAttributeLocation);
+
+    glVertexAttribPointer(posAttributeLocation, posSize, GL_FLOAT, GL_FALSE, (sizeof(GLfloat) * posSize * 2), 0);
+    glVertexAttribPointer(colorAttributeLocation, colorSize, GL_FLOAT, GL_FALSE, (sizeof(GLfloat) * colorSize * 2), (void*)(sizeof(GLfloat) * posSize));
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
 
     // render loop
     // -----------
@@ -144,10 +202,19 @@ int main()
 
         // render
         // ------
-        glClearColor(.2f, .2f, .2f, 1.0f); // background
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // background
         glClear(GL_COLOR_BUFFER_BIT); // clear the framebuffer
 
-        draw(shaderProgram, VAO, vertexCount);
+
+        // set active shader program
+        glUseProgram(shaderProgram);
+        // bind vertex array object
+        glBindVertexArray(VAO);
+        // draw geometry
+        glDrawArrays(GL_TRIANGLES, 0, vertexCount);
+        glBindVertexArray(0);
+
+
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -160,80 +227,6 @@ int main()
     glfwTerminate();
     return 0;
 }
-
-
-// create a vertex buffer object (VBO) from an array of values, return VBO handle (set as reference)
-// -------------------------------------------------------------------------------------------------
-void createArrayBuffer(const std::vector<float> &array, unsigned int &VBO){
-    // create the VBO on OpenGL and get a handle to it
-    glGenBuffers(1, &VBO);
-    // bind the VBO
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    // set the content of the VBO (type, size, pointer to start, and how it is used)
-    glBufferData(GL_ARRAY_BUFFER, array.size() * sizeof(GLfloat), &array[0], GL_STATIC_DRAW);
-}
-
-
-// create the geometry, a vertex array object representing it, and set how a shader program should read it
-// -------------------------------------------------------------------------------------------------------
-void setupShape(const unsigned int shaderProgram,unsigned int &VAO, unsigned int &vertexCount){
-
-    unsigned int posVBO, colorVBO;
-    createArrayBuffer(std::vector<float>{
-            // position
-            0.0f,  0.0f, 0.0f,
-            0.5f,  0.0f, 0.0f,
-            0.5f,  0.5f, 0.0f
-    }, posVBO);
-
-    createArrayBuffer( std::vector<float>{
-            // color
-            1.0f,  0.0f, 0.0f,
-            1.0f,  0.0f, 0.0f,
-            1.0f,  0.0f, 0.0f
-    }, colorVBO);
-
-    // tell how many vertices to draw
-    vertexCount = 3;
-
-    // create a vertex array object (VAO) on OpenGL and save a handle to it
-    glGenVertexArrays(1, &VAO);
-
-    // bind vertex array object
-    glBindVertexArray(VAO);
-
-    // set vertex shader attribute "aPos"
-    glBindBuffer(GL_ARRAY_BUFFER, posVBO);
-
-    int posSize = 3;
-    int posAttributeLocation = glGetAttribLocation(shaderProgram, "aPos");
-
-    glEnableVertexAttribArray(posAttributeLocation);
-    glVertexAttribPointer(posAttributeLocation, posSize, GL_FLOAT, GL_FALSE, 0, 0);
-
-    // set vertex shader attribute "aColor"
-    glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
-
-    int colorSize = 3;
-    int colorAttributeLocation = glGetAttribLocation(shaderProgram, "aColor");
-
-    glEnableVertexAttribArray(colorAttributeLocation);
-    glVertexAttribPointer(colorAttributeLocation, colorSize, GL_FLOAT, GL_FALSE, 0, 0);
-
-}
-
-
-// tell opengl to draw a vertex array object (VAO) using a give shaderProgram
-// --------------------------------------------------------------------------
-void draw(const unsigned int shaderProgram, const unsigned int VAO, const unsigned int vertexCount){
-    // set active shader program
-    glUseProgram(shaderProgram);
-    // bind vertex array object
-    glBindVertexArray(VAO);
-    // draw geometry
-    glDrawArrays(GL_TRIANGLES, 0, vertexCount);
-}
-
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
