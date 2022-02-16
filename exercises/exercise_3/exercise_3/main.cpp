@@ -32,6 +32,7 @@ void drawPlane();
 // --------------
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
 // settings
 // --------
@@ -47,7 +48,7 @@ SceneObject planePropeller;
 float currentTime;
 Shader* shaderProgram;
 
-float planeHeading = 0.0f;
+float planeRotation = 0.0f;
 float tiltAngle = 0.0f;
 float planeSpeed = 0.005f;
 glm::vec2 planePosition = glm::vec2(0.0,0.0);
@@ -77,6 +78,7 @@ int main()
     }
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetKeyCallback(window, key_callback);
 
     // glad: load all OpenGL function pointers
     // ---------------------------------------
@@ -156,11 +158,89 @@ void drawPlane(){
     //  you will need to transform the pose of the pieces of the plane by manipulating glm matrices and uploading a
     //  uniform mat4 transform matrix to the vertex shader
 
+    unsigned int id = glGetUniformLocation(shaderProgram->ID, "transform");
+
+    planePosition.x += sin(-glm::radians(planeRotation)) * planeSpeed;
+    planePosition.y += cos(-glm::radians(planeRotation)) * planeSpeed;
+
+    if (planePosition.x > 1)
+        planePosition.x-=2;
+    else if (planePosition.x < -1)
+        planePosition.x+=2;
+    
+    if (planePosition.y > 1)
+        planePosition.y-=2;
+    else if (planePosition.y < -1)
+        planePosition.y+=2;
+
+    if (tiltAngle > 0) {
+        tiltAngle--;
+    }
+    else if (tiltAngle < 0) {
+        tiltAngle++;
+    }
+
     // body
+    glm::mat4 trans = glm::mat4(1.0f);
+    glm::mat4 pos = glm::translate(glm::vec3(planePosition.x, planePosition.y, 0.0f));
+    glm::mat4 rotx = glm::rotate(glm::radians(tiltAngle), glm::vec3(1.0f, 0.0f, 0.0f));
+    glm::mat4 roty = glm::rotate(glm::radians(tiltAngle), glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::mat4 rotz = glm::rotate(glm::radians(planeRotation), glm::vec3(0.0f, 0.0f, 1.0f));
+    glm::mat4 scale = glm::scale(glm::vec3(0.1f, 0.1f, 0.1f));
+    glm::mat4 rotm = rotx * roty * rotz;
+    glm::mat4 m = pos * rotm * scale;
+    glUniformMatrix4fv(id, 1, GL_FALSE, glm::value_ptr(m));
     drawSceneObject(planeBody);
+
     // right wing
+    trans = glm::mat4(1.0f);
+    trans = glm::translate(trans, glm::vec3(0.0f, 0.0f, 0.0f));
+    trans = glm::rotate(trans, glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    trans = glm::rotate(trans, glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    trans = glm::rotate(trans, glm::radians(0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    trans = glm::scale(trans, glm::vec3(1.0f, 1.0f, 1.0f));
+    glUniformMatrix4fv(id, 1, GL_FALSE, glm::value_ptr(m * trans));
     drawSceneObject(planeWing);
 
+    // left wing
+    trans = glm::mat4(1.0f);
+    trans = glm::translate(trans, glm::vec3(0.0f, 0.0f, 0.0f));
+    trans = glm::rotate(trans, glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    trans = glm::rotate(trans, glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    trans = glm::rotate(trans, glm::radians(0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    trans = glm::scale(trans, glm::vec3(-1.0f, 1.0f, 1.0f));
+    glUniformMatrix4fv(id, 1, GL_FALSE, glm::value_ptr(m * trans));
+    drawSceneObject(planeWing);
+
+    // right tail wing
+    trans = glm::mat4(1.0f);
+    trans = glm::translate(trans, glm::vec3(0.0f, -0.5f, 0.0f));
+    trans = glm::rotate(trans, glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    trans = glm::rotate(trans, glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    trans = glm::rotate(trans, glm::radians(0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    trans = glm::scale(trans, glm::vec3(0.5f, 0.5f, 0.5f));
+    glUniformMatrix4fv(id, 1, GL_FALSE, glm::value_ptr(m * trans));
+    drawSceneObject(planeWing);
+
+    // left tail wing
+    trans = glm::mat4(1.0f);
+    trans = glm::translate(trans, glm::vec3(0.0f, -0.5f, 0.0f));
+    trans = glm::rotate(trans, glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    trans = glm::rotate(trans, glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    trans = glm::rotate(trans, glm::radians(0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    trans = glm::scale(trans, glm::vec3(-0.5f, 0.5f, 0.5f));
+    glUniformMatrix4fv(id, 1, GL_FALSE, glm::value_ptr(m * trans));
+    drawSceneObject(planeWing);
+
+    // propeller
+    trans = glm::mat4(1.0f);
+    trans = glm::translate(trans, glm::vec3(0.0f, 0.55f, 0.0f));
+    trans = glm::rotate(trans, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    trans = glm::rotate(trans, glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    trans = glm::rotate(trans, glm::radians((float)glfwGetTime() * 1000), glm::vec3(0.0f, 0.0f, 1.0f));
+    trans = glm::scale(trans, glm::vec3(0.3f, 0.3f, 0.3f));
+    glUniformMatrix4fv(id, 1, GL_FALSE, glm::value_ptr(m * trans));
+    drawSceneObject(planePropeller);
 }
 
 void drawSceneObject(SceneObject obj){
@@ -172,6 +252,7 @@ void setup(){
 
     // TODO 3.3 you will need to load one additional object.
     PlaneModel &airplane = PlaneModel::getInstance();
+
     // initialize plane body mesh objects
     planeBody.VAO = createVertexArray(airplane.planeBodyVertices,
                                       airplane.planeBodyColors,
@@ -183,6 +264,12 @@ void setup(){
                                       airplane.planeWingColors,
                                       airplane.planeWingIndices);
     planeWing.vertexCount = airplane.planeWingIndices.size();
+
+    // initialize plane propeller mesh objects
+    planePropeller.VAO = createVertexArray(airplane.planePropellerVertices,
+        airplane.planePropellerColors,
+        airplane.planePropellerIndices);
+    planePropeller.vertexCount = airplane.planePropellerIndices.size();
 
 }
 
@@ -241,7 +328,23 @@ void processInput(GLFWwindow *window)
     // you will need to read A and D key press inputs
     // if GLFW_KEY_A is GLFW_PRESS, plane turn left
     // if GLFW_KEY_D is GLFW_PRESS, plane turn right
+}
 
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    // input code
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+
+    if (key == GLFW_KEY_A && action == GLFW_PRESS) {
+        planeRotation += 45.0f;
+        tiltAngle -= 45.0f;
+    }
+
+    if (key == GLFW_KEY_D && action == GLFW_PRESS) {
+        planeRotation -= 45.0f;
+        tiltAngle += 45.0f;
+    }
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
