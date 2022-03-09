@@ -25,7 +25,7 @@ unsigned int VAO, VBO;                          // vertex array and buffer objec
 const unsigned int vertexBufferSize = 65536;    // # of particles
 
 // TODO 4.2 update the number of attributes in a particle
-const unsigned int particleSize = 2;            // particle attributes
+const unsigned int particleSize = 5;            // particle attributes
 
 const unsigned int sizeOfFloat = 4;             // bytes in a float
 unsigned int particleId = 0;                    // keep track of last particle to be updated
@@ -74,8 +74,8 @@ int main()
     glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
 
     // TODO 4.4 enable alpha blending (for transparency)
-
-
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_DST_ALPHA);
 
     createVertexBufferObject();
 
@@ -96,14 +96,14 @@ int main()
         processInput(window);
 
         // set background color and replace frame buffer colors with the clear color
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         // set shader program and the uniform value "currentTime"
         shaderProgram->use();
 
         // TODO 4.3 set uniform variable related to current time
-
+        shaderProgram->setFloat("currentTime", currentTime);
 
 
         // render particles
@@ -140,9 +140,15 @@ void bindAttributes(){
     glVertexAttribPointer(vertexLocation, posSize, GL_FLOAT, GL_FALSE, particleSize * sizeOfFloat, 0);
 
     // TODO 4.2 set velocity and timeOfBirth shader attributes
+    int velSize = 2;
+    GLuint vertexVelocity = glGetAttribLocation(shaderProgram->ID, "velocity");
+    glEnableVertexAttribArray(vertexVelocity);
+    glVertexAttribPointer(vertexVelocity, velSize, GL_FLOAT, GL_FALSE, particleSize * sizeOfFloat, (void*)(posSize * sizeOfFloat));
 
-
-
+    int timeBirthSize = 1;
+    GLuint timeBirthLocation = glGetAttribLocation(shaderProgram->ID, "timeOfBirth");
+    glEnableVertexAttribArray(timeBirthLocation);
+    glVertexAttribPointer(timeBirthLocation, timeBirthSize, GL_FLOAT, GL_FALSE, particleSize * sizeOfFloat, (void*)((posSize + velSize) * sizeOfFloat));
 }
 
 void createVertexBufferObject(){
@@ -170,7 +176,9 @@ void emitParticle(float x, float y, float velocityX, float velocityY, float time
     data[1] = y;
 
     // TODO 4.2 , add velocity and timeOfBirth to the particle data
-
+    data[2] = velocityX;
+    data[3] = velocityY;
+    data[4] = timeOfBirth;
 
 
     // upload only parts of the buffer
