@@ -7,7 +7,8 @@ uniform mat4 model; // represents model coordinates in the world coord space
 uniform mat4 viewProjection;  // represents the view and projection matrices combined
 
 // TODO exercise 5.4 - make the 'out' variables that will be used in the fragment shader
-
+out vec4 worldPos;
+out vec3 worldNormal;
 
 
 void main() {
@@ -17,7 +18,8 @@ void main() {
    vec3 N = normalize(model * vec4(normal, 0.0)).xyz;
 
    // TODO 5.4 pass the positions in world space to the fragment shader
-
+   worldPos = P;
+   worldNormal = N;
 
 
    // final vertex position (for opengl rendering, not for lighting)

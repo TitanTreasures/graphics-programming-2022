@@ -123,7 +123,7 @@ int main()
     // ----------------------------------
     gouraud_shading = new Shader("shaders/gouraud_shading.vert", "shaders/gouraud_shading.frag");
     phong_shading = new Shader("shaders/phong_shading.vert", "shaders/phong_shading.frag");
-    shader = gouraud_shading;
+    shader = phong_shading;
     carModel = new Model(std::vector<string>{"car/Body_LOD0.obj", "car/Interior_LOD0.obj", "car/Paint_LOD0.obj", "car/Light_LOD0.obj", "car/Windows_LOD0.obj"});
     carWheel = new Model("car/Wheel_LOD0.obj");
     floorModel = new Model("floor/floor.obj");
@@ -246,6 +246,11 @@ void setLightUniforms()
 {
     // TODO exercise 5 - set the missing uniform variables here
     // light uniforms
+    shader->setVec3("ambientLightColor", config.ambientLightColor * config.ambientLightIntensity);
+    shader->setVec3("light1Position", config.light1Position);
+    shader->setVec3("light1Color", config.light1Color * config.light1Intensity);
+    shader->setVec3("light2Position", config.light2Position);
+    shader->setVec3("light2Color", config.light2Color * config.light2Intensity);
 }
 
 
@@ -256,9 +261,11 @@ void drawObjects(){
 
     // TODO exercise 5 - set the missing uniform variables here
     // material uniforms
-
-
-
+    shader->setVec3("reflectionColor", config.reflectionColor);
+    shader->setFloat("ambientReflectance", config.ambientReflectance);
+    shader->setFloat("diffuseReflectance", config.diffuseReflectance);
+    shader->setFloat("specularReflectance", config.specularReflectance);
+    shader->setFloat("specularExponent", config.specularExponent);
 
     // the typical transformation uniforms are already set for you, these are:
     // projection (perspective projection matrix)
