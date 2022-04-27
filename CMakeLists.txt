@@ -54,6 +54,10 @@ IF(EXISTS ${CMAKE_SOURCE_DIR}/exercises)
     add_subdirectory(${CMAKE_SOURCE_DIR}/exercises)
 ENDIF()
 
+IF(EXISTS ${CMAKE_SOURCE_DIR}/VolatileFlameProject)
+    add_subdirectory(${CMAKE_SOURCE_DIR}/VolatileFlameProject)
+ENDIF()
+
 IF(EXISTS ${CMAKE_SOURCE_DIR}/student_projects)
     add_subdirectory(${CMAKE_SOURCE_DIR}/student_projects)
 ENDIF()
