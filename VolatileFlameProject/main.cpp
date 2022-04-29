@@ -1,48 +1,86 @@
 #define _USE_MATH_DEFINES
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <shader.h>
 #include <iostream>
 #include <vector>
 #include <math.h>
+#include <shader.h>
+#include <camera.h>
 
 // structure to hold the info necessary to render an object
 struct SceneObject {
 	unsigned int VAO;           // vertex array object handle
 	unsigned int vertexCount;   // number of vertices in the object
-	unsigned int indecesCount;   // number of vertices in the object
-	float r, g, b;              // for object color
-	float x, y;                 // for position offset
+	unsigned int indecesCount;  // number of vertices in the object
+	glm::mat4 position;			// position in world space
+};
+
+// structure to hold lighting info
+// -------------------------------
+struct Config {
+
+	// ambient light
+	glm::vec3 ambientLightColor = { 1.0f, 1.0f, 1.0f };
+	float ambientLightIntensity = 1.0f;
+
+	// light 1
+	glm::vec3 light1Position = { -4.0f, -4.0f, -4.0f };
+	glm::vec3 light1Color = { 1.0f, 1.0f, 1.0f };
+	float light1Intensity = 1.0f;
+
+	// light 2
+	glm::vec3 light2Position = { 4.0f, 4.0f, 4.0f };
+	glm::vec3 light2Color = { 1.0f, 1.0f, 1.0f };
+	float light2Intensity = 1.0f;
+
+	// material
+	glm::vec3 reflectionColor = { 1.0f, 1.0f, 1.0f };
+	float ambientReflectance = 0.5f;
+	float diffuseReflectance = 0.5f;
+	float specularReflectance = 0.7f;
+	float specularExponent = 20.0f;
+
+} config;
+
+struct Vertex {
+	// position
+	glm::vec3 Position;
+	// normal
+	glm::vec3 Normal;
+	// texCoords
+	glm::vec2 TexCoords;
 };
 
 // declaration of the function you will implement in exercise 2.1
 SceneObject instantiateSphere();
 // mouse, keyboard and screen reshape glfw callbacks
-void cursor_position_callback(GLFWwindow* window, double xPos, double yPos);
-void button_input_callback(GLFWwindow* window, int button, int action, int mods);
+void processInput(GLFWwindow* window);
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void key_input_callback(GLFWwindow* window, int button, int other, int action, int mods);
+void cursor_input_callback(GLFWwindow* window, double posX, double posY);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+
+void setLightUniforms();
 
 void FPSUpdate();
 
-// variables
+// global variables we will use to store our objects, shaders, and active shader
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 800;
-glm::vec2 cursorPos;
 const char* windowName = "Volatile Flame Project ";
 GLFWwindow* window;
 bool showWireframe = false;
-
-// FPS variables
+Shader* phong_shading;
+Shader* shader;
+std::vector<SceneObject> sceneObjects;
 double prevTime = 0.0;
 double crntTime = 0.0;
-double timeDiff;
 unsigned int counter = 0;
-
-// global variables we will use to store our objects, shaders, and active shader
-std::vector<SceneObject> sceneObjects;
-std::vector<Shader> shaderPrograms;
-Shader* activeShader;
+Camera camera(glm::vec3(0.0f, 0.0f, 4.0f));
+float lastX = (float)SCR_WIDTH / 2.0;
+float lastY = (float)SCR_HEIGHT / 2.0;
+float deltaTime;
+bool isPaused = false; // stop camera movement when GUI is open
 
 int main()
 {
@@ -68,9 +106,11 @@ int main()
 	// setup frame buffer size callback
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 	// setup input callbacks
-	glfwSetMouseButtonCallback(window, button_input_callback); // NEW!
-	glfwSetKeyCallback(window, key_input_callback); // NEW!
-	glfwSetCursorPosCallback(window, cursor_position_callback);
+	glfwSetCursorPosCallback(window, cursor_input_callback);
+	glfwSetKeyCallback(window, key_input_callback);
+	glfwSetScrollCallback(window, scroll_callback);
+
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	// glad: load all OpenGL function pointers
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
@@ -79,16 +119,13 @@ int main()
 		return -1;
 	}
 
-	// NEW!
-	// build and compile the shader programs
-	shaderPrograms.push_back(Shader("shaders/shader.vert", "shaders/color.frag"));
-	shaderPrograms.push_back(Shader("shaders/shader.vert", "shaders/distance.frag"));
-	shaderPrograms.push_back(Shader("shaders/shader.vert", "shaders/distance_color.frag"));
-	activeShader = &shaderPrograms[0];
+	// build and compile the shader program
+	phong_shading = new Shader("shaders/phong_shading.vert", "shaders/phong_shading.frag");
+	shader = phong_shading;
+	//&Shader("shaders/shader.vert", "shaders/color.frag");
 
-	// NEW!
 	// set up the z-buffer
-	glDepthRange(1, -1); // make the NDC a right handed coordinate system, with the camera pointing towards -z
+	glDepthRange(-1, 1); // make the NDC a right handed coordinate system, with the camera pointing towards -z
 	glEnable(GL_DEPTH_TEST); // turn on z-buffer depth test
 	glDepthFunc(GL_LESS); // draws fragments that are closer to the screen in NDC
 
@@ -98,33 +135,52 @@ int main()
 	while (!glfwWindowShouldClose(window)) {
 		FPSUpdate();
 
+		processInput(window);
+
 		// background color
-		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+		glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
 		// notice that now we are clearing two buffers, the color and the z-buffer
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		// render the cones
-		glUseProgram(activeShader->ID);
+		shader->use();
+		setLightUniforms();
+
+		// camera position
+		shader->setVec3("camPosition", camera.Position);
+
+		// TODO exercise 5 - set the missing uniform variables here
+		// material uniforms
+		shader->setVec3("reflectionColor", config.reflectionColor);
+		shader->setFloat("ambientReflectance", config.ambientReflectance);
+		shader->setFloat("diffuseReflectance", config.diffuseReflectance);
+		shader->setFloat("specularReflectance", config.specularReflectance);
+		shader->setFloat("specularExponent", config.specularExponent);
+
+		// the typical transformation uniforms are already set for you, these are:
+		// projection (perspective projection matrix)
+		// view (to map world space coordinates to the camera space, so the camera position becomes the origin)
+		// model (for each model part we draw)
+
+		// camera parameters
+		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+		glm::mat4 view = camera.GetViewMatrix();
+		glm::mat4 viewProjection = projection * view;
+
+		// set viewProjection matrix uniform
+		shader->setMat4("viewProjection", viewProjection);
 
 		for (int i = 0; i < sceneObjects.size(); i++) {
 			// bind vertex array object
 			SceneObject SO = sceneObjects[i];
 			glBindVertexArray(sceneObjects[i].VAO);
-			if (activeShader == &shaderPrograms[0] || activeShader == &shaderPrograms[2]) {
-				GLint id = glGetUniformLocation(activeShader->ID, "uColor");
-				if (id == -1) {
-					std::cout << "id not found here" << std::endl;
-				}
-				glUniform3f(id, SO.r, SO.g, SO.b);
-			}
-			GLint id = glGetUniformLocation(activeShader->ID, "uPosition");
-			if (id == -1) {
-				std::cout << "id not found here" << std::endl;
-			}
-			glUniform3f(id, 0,0,1);
+
+			shader->setMat4("position", sceneObjects[i].position);
 
 			// draw geometry
 			glDrawElements(GL_TRIANGLES, sceneObjects[i].indecesCount, GL_UNSIGNED_INT, 0);
+			glBindVertexArray(0);
+			glActiveTexture(GL_TEXTURE0);
+
 		}
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
@@ -137,25 +193,36 @@ int main()
 	return 0;
 }
 
+void setLightUniforms()
+{
+	// TODO exercise 5 - set the missing uniform variables here
+	// light uniforms
+	shader->setVec3("ambientLightColor", config.ambientLightColor * config.ambientLightIntensity);
+	shader->setVec3("light1Position", config.light1Position);
+	shader->setVec3("light1Color", config.light1Color * config.light1Intensity);
+	shader->setVec3("light2Position", config.light2Position);
+	shader->setVec3("light2Color", config.light2Color * config.light2Intensity);
+}
+
 //inspiration: http://www.songho.ca/opengl/gl_sphere.html
 // creates a cone triangle mesh, uploads it to openGL and returns the VAO associated to the mesh
 SceneObject instantiateSphere() {
-	// TODO exercise 2.1
-	// (exercises 1.7 and 1.8 can help you with implementing this function)
 
 	// Create an instance of a SceneObject
 	SceneObject sceneObject;
 
-	// you will need to store offsetX, offsetY, r, g and b in the object.
-	sceneObject.r = 1;
-	sceneObject.g = 1;
-	sceneObject.b = 1;
+	// Object position offset
+	glm::mat4 position = glm::mat4(1.0f);
+	sceneObject.position = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	// rotate 90 degrees on the x-axis
+	sceneObject.position = glm::rotate(sceneObject.position, glm::radians(90.0f), glm::vec3(1, 0, 0));
 
-	sceneObject.x = 0;
-	sceneObject.y = 0;
 
-	float sectorCount = 10.0f;
-	float stackCount = 5.0f;
+	// <->
+	float sectorCount = 100.0f;
+	// ^-v
+	float stackCount = 50.0f;
+	// O-|
 	float radius = 1.0f;
 
 	float x, y, z, xy;                              // vertex position
@@ -166,9 +233,7 @@ SceneObject instantiateSphere() {
 	float stackStep = M_PI / stackCount;
 	float sectorAngle, stackAngle;
 
-	std::vector<float> vertices;
-	std::vector<float> normals;
-	std::vector<float> texCoords;
+	std::vector<Vertex> vertices;
 
 	for (int i = 0; i <= stackCount; ++i)
 	{
@@ -185,29 +250,30 @@ SceneObject instantiateSphere() {
 			// vertex position (x, y, z)
 			x = xy * cosf(sectorAngle);             // r * cos(u) * cos(v)
 			y = xy * sinf(sectorAngle);             // r * cos(u) * sin(v)
-			vertices.push_back(x);
-			vertices.push_back(y);
-			vertices.push_back(z);
+			glm::vec3 pos(x, y, z);
 
 			// normalized vertex normal (nx, ny, nz)
 			nx = x * lengthInv;
 			ny = y * lengthInv;
 			nz = z * lengthInv;
-			normals.push_back(nx);
-			normals.push_back(ny);
-			normals.push_back(nz);
+			glm::vec3 norm(nx, ny, nz);
 
 			// vertex tex coord (s, t) range between [0, 1]
 			s = (float)j / sectorCount;
 			t = (float)i / stackCount;
-			texCoords.push_back(s);
-			texCoords.push_back(t);
+			glm::vec2 tex(s, t);
+
+			Vertex vert;
+			vert.Position = pos;
+			vert.Normal = norm;
+			vert.TexCoords = tex;
+			vertices.push_back(vert);
 		}
 	}
 
-	std::vector<int> indices;
+	std::vector<unsigned int> indices;
 	std::vector<int> lineIndices;
-	int k1, k2;
+	unsigned int k1, k2;
 	for (int i = 0; i < stackCount; ++i)
 	{
 		k1 = i * (sectorCount + 1);     // beginning of current stack
@@ -244,12 +310,8 @@ SceneObject instantiateSphere() {
 		}
 	}
 
-	for (int i = 0; i < vertices.size(); i++) {
-		std::cout << vertices[i] << ",";
-	}
-
 	// Store the number of vertices in the mesh in the scene object.
-	sceneObject.vertexCount = vertices.size()/3;
+	sceneObject.vertexCount = vertices.size() / 3;
 	sceneObject.indecesCount = indices.size();
 
 	// Declare and generate a VAO and VBO (and an EBO if you decide the work with indices).
@@ -263,18 +325,22 @@ SceneObject instantiateSphere() {
 	glBindVertexArray(VAO);
 
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, (vertices.size() * sizeof(GLfloat)), &vertices[0], GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, (indices.size() * sizeof(GLfloat)), &indices[0], GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &indices[0], GL_STATIC_DRAW);
 
 	// Set the position attribute pointers in the shader.
-	int posSize = 3;
-	int colorSize = 3;
-	int posAttributeLocation = glGetAttribLocation(activeShader->ID, "pos");
 
-	glEnableVertexAttribArray(posAttributeLocation);
-	glVertexAttribPointer(posAttributeLocation, posSize, GL_FLOAT, GL_FALSE, posSize * sizeof(GLfloat), 0);
+	// vertex Positions
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+	// vertex normals
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Normal));
+	// vertex texture coords
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, TexCoords));
 
 	// Store the VAO handle in the scene object.
 	sceneObject.VAO = VAO;
@@ -285,48 +351,80 @@ SceneObject instantiateSphere() {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
 	std::cout << "Created Sphere with " << vertices.size() << " vertices, " << indices.size() << " indices" << std::endl;
-	std::cout << "Color: r:" << sceneObject.r << " g: " << sceneObject.g << " b: " << sceneObject.b << std::endl;
 	// 'return' the scene object for the cone instance you just created.
 	return sceneObject;
 }
 
-void cursor_position_callback(GLFWwindow* window, double xPos, double yPos) {
-	cursorPos.x = xPos;
-	cursorPos.y = yPos;
+void processInput(GLFWwindow* window) {
+	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+		glfwSetWindowShouldClose(window, true);
+
+	if (isPaused)
+		return;
+
+	// movement commands
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+		camera.ProcessKeyboard(FORWARD, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+		camera.ProcessKeyboard(BACKWARD, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+		camera.ProcessKeyboard(LEFT, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+		camera.ProcessKeyboard(RIGHT, deltaTime);
+
 }
 
-// glfw: called whenever a mouse button is pressed
-void button_input_callback(GLFWwindow* window, int button, int action, int mods) {
-	// TODO exercise 2.2
-	// (exercises 1.9 and 2.2 can help you with implementing this function)
-	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-		// convert mouse position
-		float xPosion = (cursorPos.x * 2) / ((float)(SCR_WIDTH - 1));
-		float yPosion = (cursorPos.y * 2) / ((float)(SCR_HEIGHT - 1));
-		yPosion = 2.0f - yPosion;
-		xPosion--;
-		yPosion--;
-		//std::cout << "x: " << xPosion << " y: " << yPosion << std::endl;
+
+void cursor_input_callback(GLFWwindow* window, double posX, double posY) {
+
+	// camera rotation
+	static bool firstMouse = true;
+	if (firstMouse)
+	{
+		lastX = (float)posX;
+		lastY = (float)posY;
+		firstMouse = false;
 	}
+
+	float xoffset = (float)posX - lastX;
+	float yoffset = lastY - (float)posY; // reversed since y-coordinates go from bottom to top
+
+	lastX = (float)posX;
+	lastY = (float)posY;
+
+	if (isPaused)
+		return;
+
+	// we use the handy camera class from LearnOpenGL to handle our camera
+	camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
-// glfw: called whenever a keyboard key is pressed
+
 void key_input_callback(GLFWwindow* window, int button, int other, int action, int mods) {
-	if (button == GLFW_KEY_1 && action == GLFW_PRESS) {
-		activeShader = &shaderPrograms[0];
-		std::cout << "Active shader: 0 (color.frag), ID: " << activeShader->ID << std::endl;
+	// controls pause mode
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+		isPaused = !isPaused;
+		glfwSetInputMode(window, GLFW_CURSOR, isPaused ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+	}
+	if (button == GLFW_KEY_E && action == GLFW_PRESS) {
+		showWireframe = !showWireframe;
+		if (showWireframe) {
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		}
+		else
+		{
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		}
 	}
 
-	if (button == GLFW_KEY_2 && action == GLFW_PRESS) {
-		activeShader = &shaderPrograms[1];
-		std::cout << "Active shader: 1 (distance.frag), ID: " << activeShader->ID << std::endl;
-	}
-
-	if (button == GLFW_KEY_3 && action == GLFW_PRESS) {
-		activeShader = &shaderPrograms[2];
-		std::cout << "Active shader: 2 (distance_color.frag), ID: " << activeShader->ID << std::endl;
-	}
 }
+
+// glfw: whenever the mouse scroll wheel scrolls, this callback is called
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+	camera.ProcessMouseScroll((float)yoffset);
+}
+
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
@@ -338,21 +436,14 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
 void FPSUpdate()
 {
-	// Updates counter and times
-	crntTime = glfwGetTime();
-	timeDiff = crntTime - prevTime;
-	counter++;
+	static float lastFrame = 0.0f;
+	float currentFrame = (float)glfwGetTime();
+	deltaTime = currentFrame - lastFrame;
+	lastFrame = currentFrame;
 
-	if (timeDiff >= 1.0 / 30.0)
-	{
-		// Creates new title
-		int FPS = (1.0 / timeDiff) * counter;
-		int ms = (timeDiff / counter) * 1000;
-		std::string newTitle = windowName + std::to_string(FPS) + " FPS / " + std::to_string(ms) + " ms";
-		glfwSetWindowTitle(window, newTitle.c_str());
+	// Creates new title
+	int FPS = (1.0 / deltaTime);
+	std::string newTitle = windowName + std::to_string(FPS) + " FPS / " + std::to_string(deltaTime) + " ms";
+	glfwSetWindowTitle(window, newTitle.c_str());
 
-		// Resets times and counter
-		prevTime = crntTime;
-		counter = 0;
-	}
 }
