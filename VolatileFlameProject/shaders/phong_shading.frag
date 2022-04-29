@@ -21,6 +21,9 @@ uniform float specularExponent;
 // TODO exercise 5.4 add the 'in' variables to receive the interpolated Position and Normal from the vertex shader
 in vec4 worldPos;
 in vec3 worldNormal;
+in vec2 TexCoord;
+
+uniform sampler2D ourTexture;
 
 void main()
 {
@@ -62,7 +65,7 @@ void main()
 
    // TODO compute the final shaded color (e.g. add contribution of the attenuated lights 1 and 2)
 
-   // TODO set the output color to the shaded color that you have computed
+   // TODO set the output color to the shaded color that you have computed 
+   //* texture(ourTexture, TexCoord)
    FragColor = vec4(ambient + (diffuse + specular) * attenuation + (diffuse2 + specular2)*attenuation2, 1.0);
-   //FragColor = vec4(1,1,1,1);
 }

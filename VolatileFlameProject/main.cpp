@@ -1,4 +1,6 @@
 #define _USE_MATH_DEFINES
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -13,6 +15,7 @@ struct SceneObject {
 	unsigned int vertexCount;   // number of vertices in the object
 	unsigned int indecesCount;  // number of vertices in the object
 	glm::mat4 position;			// position in world space
+	unsigned int texture;		// texture
 };
 
 // structure to hold lighting info
@@ -172,6 +175,8 @@ int main()
 		for (int i = 0; i < sceneObjects.size(); i++) {
 			// bind vertex array object
 			SceneObject SO = sceneObjects[i];
+			//glActiveTexture(GL_TEXTURE0); // activate the texture unit first before binding texture
+			//glBindTexture(GL_TEXTURE_2D, sceneObjects[i].texture);
 			glBindVertexArray(sceneObjects[i].VAO);
 
 			shader->setMat4("position", sceneObjects[i].position);
@@ -211,6 +216,32 @@ SceneObject instantiateSphere() {
 	// Create an instance of a SceneObject
 	SceneObject sceneObject;
 
+	// Generate texture. Code from https://learnopengl.com/Getting-started/Textures
+	unsigned int texture;
+	glGenTextures(1, &texture);
+	glActiveTexture(GL_TEXTURE0); // activate the texture unit first before binding texture
+	glBindTexture(GL_TEXTURE_2D, texture);
+	// set the texture wrapping/filtering options (on the currently bound texture object)
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	// load and generate the texture
+	int width, height, nrChannels;
+	unsigned char* data = stbi_load("container.jpg", &width, &height, &nrChannels, 0);
+	if (data)
+	{
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
+	else
+	{
+		std::cout << "Failed to load texture" << std::endl;
+	}
+	stbi_image_free(data);
+
+	sceneObject.texture = texture;
+
 	// Object position offset
 	glm::mat4 position = glm::mat4(1.0f);
 	sceneObject.position = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 1.0f));
@@ -218,6 +249,7 @@ SceneObject instantiateSphere() {
 	sceneObject.position = glm::rotate(sceneObject.position, glm::radians(90.0f), glm::vec3(1, 0, 0));
 
 
+	// Some code from http://www.songho.ca/opengl/gl_sphere.html
 	// <->
 	float sectorCount = 100.0f;
 	// ^-v
