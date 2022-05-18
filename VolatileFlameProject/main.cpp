@@ -34,7 +34,7 @@ struct Config {
 	// light 2
 	glm::vec3 light2Position = { 4.0f, 4.0f, 4.0f };
 	glm::vec3 light2Color = { 1.0f, 1.0f, 1.0f };
-	float light2Intensity = 1.0f;
+	float light2Intensity = 10.0f;
 
 	// material
 	glm::vec3 reflectionColor = { 1.0f, 1.0f, 1.0f };
@@ -173,10 +173,10 @@ int main()
 		shader->setMat4("viewProjection", viewProjection);
 
 		for (int i = 0; i < sceneObjects.size(); i++) {
-			// bind vertex array object
 			SceneObject SO = sceneObjects[i];
-			//glActiveTexture(GL_TEXTURE0); // activate the texture unit first before binding texture
-			//glBindTexture(GL_TEXTURE_2D, sceneObjects[i].texture);
+			glActiveTexture(GL_TEXTURE0 + sceneObjects[i].texture); // activate the texture unit first before binding texture
+			glBindTexture(GL_TEXTURE_2D, sceneObjects[i].texture);
+			// bind vertex array object
 			glBindVertexArray(sceneObjects[i].VAO);
 
 			shader->setMat4("position", sceneObjects[i].position);
@@ -221,6 +221,7 @@ SceneObject instantiateSphere() {
 	glGenTextures(1, &texture);
 	glActiveTexture(GL_TEXTURE0); // activate the texture unit first before binding texture
 	glBindTexture(GL_TEXTURE_2D, texture);
+	glGenerateMipmap(GL_TEXTURE_2D);
 	// set the texture wrapping/filtering options (on the currently bound texture object)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -228,7 +229,7 @@ SceneObject instantiateSphere() {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	// load and generate the texture
 	int width, height, nrChannels;
-	unsigned char* data = stbi_load("container.jpg", &width, &height, &nrChannels, 0);
+	unsigned char* data = stbi_load("textures\container.jpg", &width, &height, &nrChannels, 0);
 	if (data)
 	{
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
@@ -251,9 +252,9 @@ SceneObject instantiateSphere() {
 
 	// Some code from http://www.songho.ca/opengl/gl_sphere.html
 	// <->
-	float sectorCount = 100.0f;
+	float sectorCount = 10.0f;
 	// ^-v
-	float stackCount = 50.0f;
+	float stackCount = 5.0f;
 	// O-|
 	float radius = 1.0f;
 

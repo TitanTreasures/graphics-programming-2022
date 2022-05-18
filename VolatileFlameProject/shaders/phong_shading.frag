@@ -67,5 +67,5 @@ void main()
 
    // TODO set the output color to the shaded color that you have computed 
    //* texture(ourTexture, TexCoord)
-   FragColor = vec4(ambient + (diffuse + specular) * attenuation + (diffuse2 + specular2)*attenuation2, 1.0);
+   FragColor = texture(ourTexture, TexCoord) * vec4(ambient + (diffuse + specular) * attenuation + (diffuse2 + specular2)*attenuation2, 1.0);
 }

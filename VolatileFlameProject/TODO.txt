@@ -1,12 +1,12 @@
 # GraphicsProgrammingVolatileFlame
 
-- Create a sphere with variable indicies.
+- Create a sphere with indicies.
 - Wrap a 2D texture around the sphere.
-- Use a heatmap and make two textures wrap the sphere based on the height
-- Generate the heatmap and update the textures in real-time
-- Add distortion to the sphere
+- Using a heightmap image, have two textures wrap the sphere, choosing which one is used based on the heightmap values
+- Generate heightmap(s) that can dissolve and condense areas in real-time.
+- Add displacement to the sphere, much like making waves.
 
 Any order:
-- Add particle effects
-- Add light emission from one of the textures
-- Add god rays
+- Particle effects?
+- Light emission from one of the textures?
+- God rays?
