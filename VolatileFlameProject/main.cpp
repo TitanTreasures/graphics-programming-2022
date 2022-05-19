@@ -1,5 +1,4 @@
 #define _USE_MATH_DEFINES
-#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -15,7 +14,7 @@ struct SceneObject {
 	unsigned int vertexCount;   // number of vertices in the object
 	unsigned int indecesCount;  // number of vertices in the object
 	glm::mat4 position;			// position in world space
-	unsigned int texture;		// texture
+	unsigned int texture1, texture2;		// textures
 };
 
 // structure to hold lighting info
@@ -174,8 +173,8 @@ int main()
 
 		for (int i = 0; i < sceneObjects.size(); i++) {
 			SceneObject SO = sceneObjects[i];
-			glActiveTexture(GL_TEXTURE0 + sceneObjects[i].texture); // activate the texture unit first before binding texture
-			glBindTexture(GL_TEXTURE_2D, sceneObjects[i].texture);
+			glActiveTexture(GL_TEXTURE0 + sceneObjects[i].texture1); // activate the texture unit first before binding texture
+			glBindTexture(GL_TEXTURE_2D, sceneObjects[i].texture1);
 			// bind vertex array object
 			glBindVertexArray(sceneObjects[i].VAO);
 
@@ -217,11 +216,9 @@ SceneObject instantiateSphere() {
 	SceneObject sceneObject;
 
 	// Generate texture. Code from https://learnopengl.com/Getting-started/Textures
-	unsigned int texture;
-	glGenTextures(1, &texture);
-	glActiveTexture(GL_TEXTURE0); // activate the texture unit first before binding texture
-	glBindTexture(GL_TEXTURE_2D, texture);
-	glGenerateMipmap(GL_TEXTURE_2D);
+	unsigned int lavaTexture;
+	glGenTextures(1, &lavaTexture);
+	glBindTexture(GL_TEXTURE_2D, lavaTexture);
 	// set the texture wrapping/filtering options (on the currently bound texture object)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -229,7 +226,7 @@ SceneObject instantiateSphere() {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	// load and generate the texture
 	int width, height, nrChannels;
-	unsigned char* data = stbi_load("textures\container.jpg", &width, &height, &nrChannels, 0);
+	unsigned char* data = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/lava.jpg", &width, &height, &nrChannels, 0);
 	if (data)
 	{
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
@@ -241,7 +238,7 @@ SceneObject instantiateSphere() {
 	}
 	stbi_image_free(data);
 
-	sceneObject.texture = texture;
+	sceneObject.texture1 = lavaTexture;
 
 	// Object position offset
 	glm::mat4 position = glm::mat4(1.0f);
@@ -252,9 +249,9 @@ SceneObject instantiateSphere() {
 
 	// Some code from http://www.songho.ca/opengl/gl_sphere.html
 	// <->
-	float sectorCount = 10.0f;
+	float sectorCount = 100.0f;
 	// ^-v
-	float stackCount = 5.0f;
+	float stackCount = 50.0f;
 	// O-|
 	float radius = 1.0f;
 
