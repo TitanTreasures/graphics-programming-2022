@@ -18,12 +18,14 @@ uniform float diffuseReflectance;
 uniform float specularReflectance;
 uniform float specularExponent;
 
+uniform float mixValue;
+
 // TODO exercise 5.4 add the 'in' variables to receive the interpolated Position and Normal from the vertex shader
 in vec4 worldPos;
 in vec3 worldNormal;
 in vec2 TexCoord;
 
-uniform sampler2D ourTexture;
+uniform sampler2D texture1, texture2;
 
 void main()
 {
@@ -67,5 +69,5 @@ void main()
 
    // TODO set the output color to the shaded color that you have computed 
    //* texture(ourTexture, TexCoord)
-   FragColor = texture(ourTexture, TexCoord) * vec4(ambient + (diffuse + specular) * attenuation + (diffuse2 + specular2)*attenuation2, 1.0);
+   FragColor = mix(texture(texture1, TexCoord), texture(texture2, TexCoord), mixValue) * vec4(ambient + (diffuse + specular) * attenuation + (diffuse2 + specular2)*attenuation2, 1.0);
 }

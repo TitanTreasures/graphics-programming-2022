@@ -171,10 +171,15 @@ int main()
 		// set viewProjection matrix uniform
 		shader->setMat4("viewProjection", viewProjection);
 
+		float opacity = (sin((float)glfwGetTime()) / 2) + 0.5f;
+		shader->setFloat("mixValue", opacity);
+
 		for (int i = 0; i < sceneObjects.size(); i++) {
 			SceneObject SO = sceneObjects[i];
 			glActiveTexture(GL_TEXTURE0 + sceneObjects[i].texture1); // activate the texture unit first before binding texture
 			glBindTexture(GL_TEXTURE_2D, sceneObjects[i].texture1);
+			glActiveTexture(GL_TEXTURE1 + sceneObjects[i].texture2); // activate the texture unit first before binding texture
+			glBindTexture(GL_TEXTURE_2D, sceneObjects[i].texture2);
 			// bind vertex array object
 			glBindVertexArray(sceneObjects[i].VAO);
 
@@ -225,20 +230,48 @@ SceneObject instantiateSphere() {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	// load and generate the texture
-	int width, height, nrChannels;
-	unsigned char* data = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/lava.jpg", &width, &height, &nrChannels, 0);
-	if (data)
+	int width1, height1, nrChannels1;
+	unsigned char* data1 = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/lava.jpg", &width1, &height1, &nrChannels1, 0);
+	if (data1)
 	{
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width1, height1, 0, GL_RGB, GL_UNSIGNED_BYTE, data1);
 		glGenerateMipmap(GL_TEXTURE_2D);
 	}
 	else
 	{
 		std::cout << "Failed to load texture" << std::endl;
 	}
-	stbi_image_free(data);
+	stbi_image_free(data1);
 
 	sceneObject.texture1 = lavaTexture;
+
+	unsigned int rockTexture;
+	glGenTextures(1, &rockTexture);
+	glBindTexture(GL_TEXTURE_2D, rockTexture);
+	// set the texture wrapping/filtering options (on the currently bound texture object)
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	// load and generate the texture
+	int width2, height2, nrChannels2;
+	unsigned char* data2 = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/rock.jpg", &width2, &height2, &nrChannels2, 0);
+	if (data2)
+	{
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width2, height2, 0, GL_RGB, GL_UNSIGNED_BYTE, data2);
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
+	else
+	{
+		std::cout << "Failed to load texture" << std::endl;
+	}
+	stbi_image_free(data2);
+
+	sceneObject.texture2 = rockTexture;
+
+	shader->use();
+	glUniform1i(glGetUniformLocation(shader->ID, "texture1"), 0);
+	glUniform1i(glGetUniformLocation(shader->ID, "texture2"), 1);
 
 	// Object position offset
 	glm::mat4 position = glm::mat4(1.0f);
