@@ -44,6 +44,7 @@ struct Config {
 
 } config;
 
+// Vertex structure
 struct Vertex {
 	// position
 	glm::vec3 Position;
@@ -91,7 +92,7 @@ int main()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
+	glfwSwapInterval(60);
 #ifdef __APPLE__
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // uncomment this statement to fix compilation on OS X
 #endif
@@ -146,24 +147,21 @@ int main()
 		// notice that now we are clearing two buffers, the color and the z-buffer
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+		// select shader to use
 		shader->use();
+
+		//setup light setting uniforms
 		setLightUniforms();
 
 		// camera position
 		shader->setVec3("camPosition", camera.Position);
 
-		// TODO exercise 5 - set the missing uniform variables here
 		// material uniforms
 		shader->setVec3("reflectionColor", config.reflectionColor);
 		shader->setFloat("ambientReflectance", config.ambientReflectance);
 		shader->setFloat("diffuseReflectance", config.diffuseReflectance);
 		shader->setFloat("specularReflectance", config.specularReflectance);
 		shader->setFloat("specularExponent", config.specularExponent);
-
-		// the typical transformation uniforms are already set for you, these are:
-		// projection (perspective projection matrix)
-		// view (to map world space coordinates to the camera space, so the camera position becomes the origin)
-		// model (for each model part we draw)
 
 		// camera parameters
 		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
@@ -177,23 +175,25 @@ int main()
 		shader->setFloat("mixValue", opacity);
 
 		for (int i = 0; i < sceneObjects.size(); i++) {
+
 			SceneObject SO = sceneObjects[i];
-			glActiveTexture(GL_TEXTURE0 + sceneObjects[i].texture1); // activate the texture unit first before binding texture
+
+			glActiveTexture(GL_TEXTURE0 + sceneObjects[i].texture1);
 			glBindTexture(GL_TEXTURE_2D, sceneObjects[i].texture1);
-			glActiveTexture(GL_TEXTURE1 + sceneObjects[i].texture2); // activate the texture unit first before binding texture
+			glActiveTexture(GL_TEXTURE1 + sceneObjects[i].texture2);
 			glBindTexture(GL_TEXTURE_2D, sceneObjects[i].texture2);
+
 			// bind vertex array object
 			glBindVertexArray(sceneObjects[i].VAO);
 
+			// Set the position of the object for this frame
+			sceneObjects[i].position = glm::rotate(sceneObjects[i].position, glm::radians(deltaTime*10), glm::vec3(0, 0, 1));
 			shader->setMat4("position", sceneObjects[i].position);
 
 			// draw geometry
-			sceneObjects[i].position = glm::rotate(sceneObjects[i].position, glm::radians(deltaTime*10), glm::vec3(0, 0, 1));
-
 			glDrawElements(GL_TRIANGLES, sceneObjects[i].indecesCount, GL_UNSIGNED_INT, 0);
 			glBindVertexArray(0);
 			glActiveTexture(GL_TEXTURE0);
-
 		}
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
@@ -228,11 +228,13 @@ SceneObject instantiateSphere() {
 	unsigned int lavaTexture;
 	glGenTextures(1, &lavaTexture);
 	glBindTexture(GL_TEXTURE_2D, lavaTexture);
+
 	// set the texture wrapping/filtering options (on the currently bound texture object)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
 	// load and generate the texture
 	int width1, height1, nrChannels1;
 	unsigned char* data1 = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/lava.jpg", &width1, &height1, &nrChannels1, 0);
@@ -252,11 +254,13 @@ SceneObject instantiateSphere() {
 	unsigned int rockTexture;
 	glGenTextures(1, &rockTexture);
 	glBindTexture(GL_TEXTURE_2D, rockTexture);
+
 	// set the texture wrapping/filtering options (on the currently bound texture object)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
 	// load and generate the texture
 	int width2, height2, nrChannels2;
 	unsigned char* data2 = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/rock.jpg", &width2, &height2, &nrChannels2, 0);
@@ -283,12 +287,12 @@ SceneObject instantiateSphere() {
 	// rotate 90 degrees on the x-axis
 	sceneObject.position = glm::rotate(sceneObject.position, glm::radians(90.0f), glm::vec3(1, 0, 0));
 
-
 	// Some code from http://www.songho.ca/opengl/gl_sphere.html
 	// <->
-	float sectorCount = 100.0f;
+	float multiplier = 10.0f;
+	float sectorCount = 10.0f*multiplier;
 	// ^-v
-	float stackCount = 50.0f;
+	float stackCount = 5.0f*multiplier;
 	// O-|
 	float radius = 1.0f;
 
@@ -438,7 +442,6 @@ void processInput(GLFWwindow* window) {
 		camera.ProcessKeyboard(LEFT, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
 		camera.ProcessKeyboard(RIGHT, deltaTime);
-
 }
 
 
@@ -483,7 +486,6 @@ void key_input_callback(GLFWwindow* window, int button, int other, int action, i
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
 	}
-
 }
 
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called
@@ -512,5 +514,4 @@ void FPSUpdate()
 	int FPS = (1.0 / deltaTime);
 	std::string newTitle = windowName + std::to_string(FPS) + " FPS / " + std::to_string(deltaTime) + " ms";
 	glfwSetWindowTitle(window, newTitle.c_str());
-
 }

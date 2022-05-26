@@ -235,7 +235,7 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT); // clear the framebuffer
 
         // rotate all the vertices data
-        float rotationSpeed = 1.0f;
+        float rotationSpeed = timeDiff;
         for (int i = 6; i < vertices.size(); i += 6) {
             float newX = 0 + (vertices[i] - 0) * cos(glm::radians(rotationSpeed)) - (vertices[i + 1] - 0) * sin(glm::radians(rotationSpeed));
             float newY = 0 + (vertices[i] - 0) * sin(glm::radians(rotationSpeed)) + (vertices[i + 1] - 0) * cos(glm::radians(rotationSpeed));
