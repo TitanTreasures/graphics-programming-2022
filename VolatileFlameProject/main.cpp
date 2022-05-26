@@ -133,6 +133,8 @@ int main()
 
 	sceneObjects.push_back(instantiateSphere());
 
+	float alpha = 0;
+
 	// render loop
 	while (!glfwWindowShouldClose(window)) {
 		FPSUpdate();
@@ -140,7 +142,7 @@ int main()
 		processInput(window);
 
 		// background color
-		glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		// notice that now we are clearing two buffers, the color and the z-buffer
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -170,8 +172,8 @@ int main()
 
 		// set viewProjection matrix uniform
 		shader->setMat4("viewProjection", viewProjection);
-
-		float opacity = (sin((float)glfwGetTime()) / 2) + 0.5f;
+		alpha += deltaTime;
+		float opacity = (sin(alpha) / 2) + 0.5f;
 		shader->setFloat("mixValue", opacity);
 
 		for (int i = 0; i < sceneObjects.size(); i++) {
@@ -186,6 +188,8 @@ int main()
 			shader->setMat4("position", sceneObjects[i].position);
 
 			// draw geometry
+			sceneObjects[i].position = glm::rotate(sceneObjects[i].position, glm::radians(deltaTime*10), glm::vec3(0, 0, 1));
+
 			glDrawElements(GL_TRIANGLES, sceneObjects[i].indecesCount, GL_UNSIGNED_INT, 0);
 			glBindVertexArray(0);
 			glActiveTexture(GL_TEXTURE0);

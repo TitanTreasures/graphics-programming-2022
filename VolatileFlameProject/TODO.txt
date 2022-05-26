@@ -2,6 +2,7 @@
 
 - Create a sphere with indicies.
 - Wrap a 2D texture around the sphere.
+- Rotate the sphere.
 - Using a heightmap image, have two textures wrap the sphere, choosing which one is used based on the heightmap values
 - Generate heightmap(s) that can dissolve and condense areas in real-time.
 - Add displacement to the sphere, much like making waves.
