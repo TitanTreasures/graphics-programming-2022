@@ -18,12 +18,13 @@ uniform float diffuseReflectance;
 uniform float specularReflectance;
 uniform float specularExponent;
 
-uniform float mixValue;
+//uniform float mixValue;
 
-// TODO exercise 5.4 add the 'in' variables to receive the interpolated Position and Normal from the vertex shader
+// The 'in' variables to receive the interpolated Position and Normal from the vertex shader
 in vec4 worldPos;
 in vec3 worldNormal;
 in vec2 TexCoord;
+in float mixValue;
 
 uniform sampler2D texture1, texture2;
 
@@ -31,7 +32,7 @@ void main()
 {
    vec4 P = worldPos;
    vec3 N = normalize(worldNormal);
-   // TODO exercise 5.4 - phong shading (i.e. Phong reflection model computed in the fragment shader)
+   // Phong shading (i.e. Phong reflection model computed in the fragment shader)
    // ambient component
    vec3 ambient = ambientLightColor * ambientReflectance * reflectionColor;
 
