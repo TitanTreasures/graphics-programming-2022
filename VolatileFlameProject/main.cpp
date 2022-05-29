@@ -138,7 +138,7 @@ int main()
 	sceneObjects.push_back(instantiateSphere());
 
 	//Set alpha debug
-	float alpha = 0;
+	float alpha = 1;
 
 
 	// render loop
@@ -176,8 +176,12 @@ int main()
 		// set viewProjection matrix uniform
 		shader->setMat4("viewProjection", viewProjection);
 		alpha += deltaTime;
-		float opacity = (sin(alpha) / 2) + 0.5f;
-		shader->setFloat("mixValue", opacity);
+		//float opacity = (sin(alpha) / 2) + 0.5f;
+		//shader->setFloat("mixValue", opacity);
+		shader->setFloat("delta", deltaTime);
+		if (alpha>10) {
+			alpha = 1;
+		}
 
 		for (int i = 0; i < sceneObjects.size(); i++) {
 
@@ -187,13 +191,15 @@ int main()
 			glBindTexture(GL_TEXTURE_2D, sceneObjects[i].texture1);
 			glActiveTexture(GL_TEXTURE0 + sceneObjects[i].texture2);
 			glBindTexture(GL_TEXTURE_2D, sceneObjects[i].texture2);
+			glActiveTexture(GL_TEXTURE0 + sceneObjects[i].heightmap);
+			glBindTexture(GL_TEXTURE_2D, sceneObjects[i].heightmap);
 
 			// bind vertex array object
 			glBindVertexArray(sceneObjects[i].VAO);
 
 			// Set the position of the object for this frame
-			sceneObjects[i].position = glm::rotate(sceneObjects[i].position, glm::radians(deltaTime*10), glm::vec3(0, 0, 1));
-			shader->setMat4("position", sceneObjects[i].position);
+			//sceneObjects[i].position = glm::rotate(sceneObjects[i].position, glm::radians(deltaTime*10), glm::vec3(0, 0, 1));
+			shader->setMat4("modelToWorldSpace", sceneObjects[i].position);
 
 			// draw geometry
 			glDrawElements(GL_TRIANGLES, sceneObjects[i].indecesCount, GL_UNSIGNED_INT, 0);
@@ -230,8 +236,6 @@ SceneObject instantiateSphere() {
 	SceneObject sceneObject;
 
 	// Generate texture. Code from https://learnopengl.com/Getting-started/Textures
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, 0);
 	unsigned int lavaTexture;
 	glGenTextures(1, &lavaTexture);
 	glBindTexture(GL_TEXTURE_2D, lavaTexture);
@@ -258,8 +262,6 @@ SceneObject instantiateSphere() {
 
 	sceneObject.texture1 = lavaTexture;
 
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, 0);
 	unsigned int rockTexture;
 	glGenTextures(1, &rockTexture);
 	glBindTexture(GL_TEXTURE_2D, rockTexture);
@@ -288,8 +290,6 @@ SceneObject instantiateSphere() {
 
 
 	// Load the heightmap texture
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, 0);
 	unsigned int heightMap;
 	glGenTextures(1, &heightMap);
 	glBindTexture(GL_TEXTURE_2D, heightMap);
@@ -302,18 +302,18 @@ SceneObject instantiateSphere() {
 
 	// load and generate the texture
 	int width3, height3, nrChannels3;
-	unsigned char* data3 = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/heightmap2.jpg", &width3, &height3, &nrChannels3, 0);
+	unsigned char* data3 = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/texture3.jpg", &width3, &height3, &nrChannels3, 0);
 	if (data3)
 	{
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width3, height3, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, data3);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width3, height3, 0, GL_RGB, GL_UNSIGNED_BYTE, data3);
 		glGenerateMipmap(GL_TEXTURE_2D);
 	}
 	else
 	{
 		std::cout << "Failed to load heightmap texture" << std::endl;
 	}
+	//std::cout << data3 << "\n";
 	stbi_image_free(data3);
-
 	sceneObject.heightmap = heightMap;
 
 	shader->use();
@@ -345,6 +345,7 @@ SceneObject instantiateSphere() {
 	float sectorAngle, stackAngle;
 
 	std::vector<Vertex> vertices;
+	std::vector<float> heights;
 
 	for (int i = 0; i <= stackCount; ++i)
 	{
@@ -373,6 +374,8 @@ SceneObject instantiateSphere() {
 			s = (float)j / sectorCount;
 			t = (float)i / stackCount;
 			glm::vec2 tex(s, t);
+
+			//heights.push_back();
 
 			Vertex vert;
 			vert.Position = pos;
