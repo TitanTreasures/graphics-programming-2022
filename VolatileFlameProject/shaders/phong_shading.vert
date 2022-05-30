@@ -14,8 +14,6 @@ out float vertexTextureMixValue;
 uniform sampler2D heightmap1, heightmap2;
 uniform float time;
 uniform float deltaTime;
-uniform float frequency;
-uniform float amplitude;
 
 vec2 calcTextCoord1HorizScroll = textCoord.xy;
 vec2 calcTextCoord2HorizScroll = textCoord.xy;

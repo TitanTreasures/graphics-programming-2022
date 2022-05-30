@@ -75,6 +75,7 @@ const char* windowName = "Volatile Flame Project ";
 GLFWwindow* window;
 bool showWireframe = false;
 Shader* phong_shading;
+Shader* phong_shading2;
 Shader* shader;
 std::vector<SceneObject> sceneObjects;
 double prevTime = 0.0;
@@ -126,6 +127,7 @@ int main()
 
 	// build and compile the shader program
 	phong_shading = new Shader("shaders/phong_shading.vert", "shaders/phong_shading.frag");
+	phong_shading2 = new Shader("shaders/phong_shadingv2.vert", "shaders/phong_shading.frag");
 	shader = phong_shading;
 	//&Shader("shaders/shader.vert", "shaders/color.frag");
 
