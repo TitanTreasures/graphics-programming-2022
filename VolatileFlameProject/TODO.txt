@@ -6,9 +6,13 @@
 - Using a heightmap image, have two textures wrap the sphere, choosing which one is used based on the heightmap values
 - Generate heightmap(s) that can dissolve and condense areas in real-time.
 - Add displacement to the sphere, much like making waves.
-
 - Texture alpha in fragment shader based on vertex difference compared to original
+
+- Clean up code and uniforms /+ variables in v2 shaders
+- Implement switching of shaders (requires below)
+- Implement function for loading textures
 - Simulate instability and then stabalize
+- Clean up and document code, adding references to external sources
 
 Any order:
 - Particle effects?
