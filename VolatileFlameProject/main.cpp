@@ -15,7 +15,7 @@ struct SceneObject {
 	unsigned int indecesCount;  // number of vertices in the object
 	glm::mat4 position;			// position in world space
 	unsigned int texture1, texture2;		// textures
-	unsigned int heightmap;
+	unsigned int heightmap1, heightmap2;
 };
 
 // structure to hold lighting info
@@ -148,7 +148,7 @@ int main()
 		processInput(window);
 
 		// background color
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		// notice that now we are clearing two buffers, the color and the z-buffer
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -175,7 +175,7 @@ int main()
 
 		// set viewProjection matrix uniform
 		shader->setMat4("viewProjection", viewProjection);
-
+		shader->setFloat("delta", deltaTime);
 		shader->setFloat("time", (float)glfwGetTime());
 		shader->setFloat("frequency", 5.0);
 		shader->setFloat("amplitude", 0.5);
@@ -191,14 +191,16 @@ int main()
 			glBindTexture(GL_TEXTURE_2D, sceneObjects[i].texture1);
 			glActiveTexture(GL_TEXTURE0 + sceneObjects[i].texture2);
 			glBindTexture(GL_TEXTURE_2D, sceneObjects[i].texture2);
-			glActiveTexture(GL_TEXTURE0 + sceneObjects[i].heightmap);
-			glBindTexture(GL_TEXTURE_2D, sceneObjects[i].heightmap);
+			glActiveTexture(GL_TEXTURE0 + sceneObjects[i].heightmap1);
+			glBindTexture(GL_TEXTURE_2D, sceneObjects[i].heightmap1);
+			glActiveTexture(GL_TEXTURE0 + sceneObjects[i].heightmap2);
+			glBindTexture(GL_TEXTURE_2D, sceneObjects[i].heightmap2);
 
 			// bind vertex array object
 			glBindVertexArray(sceneObjects[i].VAO);
 
 			// Set the position of the object for this frame
-			sceneObjects[i].position = glm::rotate(sceneObjects[i].position, glm::radians(deltaTime*20), glm::vec3(0, 0, 1));
+			//sceneObjects[i].position = glm::rotate(sceneObjects[i].position, glm::radians(deltaTime*40), glm::vec3(0, 0, 1));
 			shader->setMat4("modelToWorldSpace", sceneObjects[i].position);
 
 			// draw geometry
@@ -290,9 +292,9 @@ SceneObject instantiateSphere() {
 
 
 	// Load the heightmap texture
-	unsigned int heightMap;
-	glGenTextures(1, &heightMap);
-	glBindTexture(GL_TEXTURE_2D, heightMap);
+	unsigned int heightMap1;
+	glGenTextures(1, &heightMap1);
+	glBindTexture(GL_TEXTURE_2D, heightMap1);
 
 	// set the texture wrapping/filtering options (on the currently bound texture object)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -302,7 +304,7 @@ SceneObject instantiateSphere() {
 
 	// load and generate the texture
 	int width3, height3, nrChannels3;
-	unsigned char* data3 = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/heightmap2.jpg", &width3, &height3, &nrChannels3, 0);
+	unsigned char* data3 = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/heightmap1.jpg", &width3, &height3, &nrChannels3, 0);
 	if (data3)
 	{
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width3, height3, 0, GL_RGB, GL_UNSIGNED_BYTE, data3);
@@ -312,14 +314,40 @@ SceneObject instantiateSphere() {
 	{
 		std::cout << "Failed to load heightmap texture" << std::endl;
 	}
-	//std::cout << data3 << "\n";
 	stbi_image_free(data3);
-	sceneObject.heightmap = heightMap;
+	sceneObject.heightmap1 = heightMap1;
+
+	// Load the heightmap texture
+	unsigned int heightMap2;
+	glGenTextures(1, &heightMap2);
+	glBindTexture(GL_TEXTURE_2D, heightMap2);
+
+	// set the texture wrapping/filtering options (on the currently bound texture object)
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	// load and generate the texture
+	int width4, height4, nrChannels4;
+	unsigned char* data4 = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/heightmap3.jpg", &width4, &height4, &nrChannels4, 0);
+	if (data4)
+	{
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width4, height4, 0, GL_RGB, GL_UNSIGNED_BYTE, data4);
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
+	else
+	{
+		std::cout << "Failed to load heightmap texture" << std::endl;
+	}
+	stbi_image_free(data4);
+	sceneObject.heightmap2 = heightMap2;
 
 	shader->use();
 	glUniform1i(glGetUniformLocation(shader->ID, "texture1"), sceneObject.texture1);
 	glUniform1i(glGetUniformLocation(shader->ID, "texture2"), sceneObject.texture2);
-	glUniform1i(glGetUniformLocation(shader->ID, "heightmap"), sceneObject.heightmap);
+	glUniform1i(glGetUniformLocation(shader->ID, "heightmap1"), sceneObject.heightmap1);
+	glUniform1i(glGetUniformLocation(shader->ID, "heightmap2"), sceneObject.heightmap2);
 
 	// Object position offset
 	glm::mat4 position = glm::mat4(1.0f);

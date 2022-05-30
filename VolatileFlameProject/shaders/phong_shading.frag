@@ -24,7 +24,7 @@ uniform float specularExponent;
 in vec4 worldPos;
 in vec3 worldNormal;
 in vec2 TexCoord;
-in float mixValue;
+in float vertexTextureMixValue;
 
 uniform sampler2D texture1, texture2;
 
@@ -32,43 +32,49 @@ void main()
 {
    vec4 P = worldPos;
    vec3 N = normalize(worldNormal);
+
    // Phong shading (i.e. Phong reflection model computed in the fragment shader)
    // ambient component
    vec3 ambient = ambientLightColor * ambientReflectance * reflectionColor;
 
+   // LIGHT 1:
    // diffuse component for light 1
    vec3 L = normalize(light1Position - P.xyz);
    float diffuseModulation = max(dot(N, L), 0.0);
    vec3 diffuse = light1Color * diffuseReflectance * diffuseModulation * reflectionColor;
-
    // specular component for light 1
    vec3 V = normalize(camPosition - P.xyz);
    vec3 H = normalize(L + V);
    float specModulation = pow(max(dot(H, N), 0.0), specularExponent);
-   // Alternative version: Same result, with different specularExponent values
-   //vec3 R = 2 * dot(L, N) * N - L; // the same as reflect(-L, normal)
-   //float specModulation = pow(max(dot(R, V), 0.0), specularExponent);
    vec3 specular = light1Color * specularReflectance * specModulation;
-
-   // TODO exercuse 5.5 - attenuation - light 1 (Lighting loses intensity as the distance between the light emitter and the surface increases.)
+   // attenuation component for light 1 (Lighting loses intensity as the distance between the light emitter and the surface increases.)
    float distToLight = distance(light1Position, P.xyz);
    float attenuation = 1.0f / (distToLight * distToLight);
+   // combined phong light 1
+   vec3 light1 = (diffuse + specular) * attenuation;
 
-   // TODO exercise 5.6 - multiple lights, compute diffuse, specular and attenuation of light 2
+
+   // LIGHT 2:
+   // diffuse component for light 2
    vec3 L2 = normalize(light2Position - P.xyz);
    float diffuseModulation2 = max(dot(N, L2), 0.0);
    vec3 diffuse2 = light2Color * diffuseReflectance * diffuseModulation2 * reflectionColor;
-
+   // specular component for light 2
    vec3 H2 = normalize(L2 + V);
    float specModulation2 = pow(max(dot(H2, N), 0.0), specularExponent);
    vec3 specular2 = light2Color * specularReflectance * specModulation2;
-
+   // calculate light 2 attenuation
    float distToLight2 = distance(light2Position, P.xyz);
    float attenuation2 = 1.0f / (distToLight2 * distToLight2);
+   // combined phong light 2
+   vec3 light2 = (diffuse2 + specular2)*attenuation2;
 
-   // TODO compute the final shaded color (e.g. add contribution of the attenuated lights 1 and 2)
+   // Compute the final shaded color
+   vec4 lighting = vec4(ambient + light1 + light2, 1.0);
 
-   // TODO set the output color to the shaded color that you have computed 
-   //* texture(ourTexture, TexCoord)
-   FragColor = mix(texture(texture1, TexCoord), texture(texture2, TexCoord), 10*mixValue+0.5) * vec4(ambient + (diffuse + specular) * attenuation + (diffuse2 + specular2)*attenuation2, 1.0);
+   // mix the textures
+   vec4 textureMix = mix(texture(texture2, TexCoord), texture(texture1, TexCoord), (vertexTextureMixValue * vertexTextureMixValue * vertexTextureMixValue * 100000000.0)-1);
+
+   // add the final texture and lighting
+   FragColor = textureMix * lighting;
 }

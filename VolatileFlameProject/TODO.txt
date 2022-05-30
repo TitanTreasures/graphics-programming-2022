@@ -7,6 +7,9 @@
 - Generate heightmap(s) that can dissolve and condense areas in real-time.
 - Add displacement to the sphere, much like making waves.
 
+- Texture alpha in fragment shader based on vertex difference compared to original
+- Simulate instability and then stabalize
+
 Any order:
 - Particle effects?
 - Light emission from one of the textures?

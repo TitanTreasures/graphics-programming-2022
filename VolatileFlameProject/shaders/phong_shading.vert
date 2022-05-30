@@ -9,20 +9,41 @@ uniform mat4 viewProjection;  // represents the view and projection matrices com
 out vec4 worldPos;
 out vec3 worldNormal;
 out vec2 TexCoord;
-out float mixValue;
+out float vertexTextureMixValue;
 
-uniform sampler2D heightmap;
+uniform sampler2D heightmap1, heightmap2;
 uniform float time;
+uniform float deltaTime;
 uniform float frequency;
 uniform float amplitude;
+
+vec2 calcTextCoord1HorizScroll = textCoord.xy;
+vec2 calcTextCoord2HorizScroll = textCoord.xy;
+
 void main() {
 
-	mixValue =  (texture(heightmap, textCoord.xy).r/255)*(sin(time * frequency) * amplitude) * 100;
-	
-   // vertex in world space (for lighting computat ion)
+
+   // Horizonal scroll on the texture coordinates
+   calcTextCoord1HorizScroll.x = textCoord.x + time * 0.2;
+   calcTextCoord2HorizScroll.x = textCoord.x - time * 0.1;
+   // loop back when outside texture bounds
+   if(calcTextCoord1HorizScroll.x > 1.0) calcTextCoord1HorizScroll.x -= 1.0; 
+   if(calcTextCoord2HorizScroll.x < 0.0) calcTextCoord2HorizScroll.x += 1.0;
+   // get heightmap values in the range 0-1
+   float heightMap1DisplaceValue = texture(heightmap1, calcTextCoord1HorizScroll.xy).r/255;
+   float heightMap2DisplaceValue = texture(heightmap2, calcTextCoord2HorizScroll.xy).r/255;
+
+   // Pass the values for mixing the textures to the fragment shader
+	vertexTextureMixValue =  ((heightMap1DisplaceValue/2.0 + heightMap2DisplaceValue*2.0)/2);
+
+   // calculate displacement
+   vec3 displacement = normalize(normal.xyz) * vertexTextureMixValue * 200.0;
+
+   // vertex position in world space (for lighting computation and displacement)
+   vec4 P = modelToWorldSpace * vec4(vertex + displacement, 1.0);
+   // normal direction in world space (for lighting computation)
    vec3 N = normalize(modelToWorldSpace * vec4(normal, 0.0)).xyz;
-   vec4 P = modelToWorldSpace * vec4(vertex + normalize(normal.xyz) * mixValue, 1.0);
-   // normal in world space (for lighting computation)
+	
    // Pass the positions in world space to the fragment shader
    worldPos = P;
    worldNormal = N;
