@@ -12,20 +12,20 @@ out vec2 TexCoord;
 out float mixValue;
 
 uniform sampler2D heightmap;
-uniform float delta;
-
+uniform float time;
+uniform float frequency;
+uniform float amplitude;
 void main() {
 
-	mixValue = texture(heightmap, textCoord.xy).r/255;
-
+	mixValue =  (texture(heightmap, textCoord.xy).r/255)*(sin(time * frequency) * amplitude) * 100;
+	
    // vertex in world space (for lighting computat ion)
    vec3 N = normalize(modelToWorldSpace * vec4(normal, 0.0)).xyz;
-   vec4 P = modelToWorldSpace * vec4(vertex + normalize(normal.xyz) * mixValue * 100, 1.0);
+   vec4 P = modelToWorldSpace * vec4(vertex + normalize(normal.xyz) * mixValue, 1.0);
    // normal in world space (for lighting computation)
    // Pass the positions in world space to the fragment shader
    worldPos = P;
    worldNormal = N;
-
    // final vertex position (for opengl rendering, not for lighting)
    gl_Position = viewProjection * P;
    TexCoord = textCoord;

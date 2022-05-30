@@ -175,13 +175,13 @@ int main()
 
 		// set viewProjection matrix uniform
 		shader->setMat4("viewProjection", viewProjection);
-		alpha += deltaTime;
-		//float opacity = (sin(alpha) / 2) + 0.5f;
-		//shader->setFloat("mixValue", opacity);
-		shader->setFloat("delta", deltaTime);
-		if (alpha>10) {
-			alpha = 1;
-		}
+
+		shader->setFloat("time", (float)glfwGetTime());
+		shader->setFloat("frequency", 5.0);
+		shader->setFloat("amplitude", 0.5);
+		//TODO: increase freq x2 and ampl x4 after some time for a short cooldown, and then reset.
+
+		//TODO: Implement some noise in the heightmap so lava is not just I/O
 
 		for (int i = 0; i < sceneObjects.size(); i++) {
 
@@ -198,7 +198,7 @@ int main()
 			glBindVertexArray(sceneObjects[i].VAO);
 
 			// Set the position of the object for this frame
-			//sceneObjects[i].position = glm::rotate(sceneObjects[i].position, glm::radians(deltaTime*10), glm::vec3(0, 0, 1));
+			sceneObjects[i].position = glm::rotate(sceneObjects[i].position, glm::radians(deltaTime*20), glm::vec3(0, 0, 1));
 			shader->setMat4("modelToWorldSpace", sceneObjects[i].position);
 
 			// draw geometry
@@ -248,7 +248,7 @@ SceneObject instantiateSphere() {
 
 	// load and generate the texture
 	int width1, height1, nrChannels1;
-	unsigned char* data1 = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/lava.jpg", &width1, &height1, &nrChannels1, 0);
+	unsigned char* data1 = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/rock.jpg", &width1, &height1, &nrChannels1, 0);
 	if (data1)
 	{
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width1, height1, 0, GL_RGB, GL_UNSIGNED_BYTE, data1);
@@ -274,7 +274,7 @@ SceneObject instantiateSphere() {
 
 	// load and generate the texture
 	int width2, height2, nrChannels2;
-	unsigned char* data2 = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/rock.jpg", &width2, &height2, &nrChannels2, 0);
+	unsigned char* data2 = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/lava.jpg", &width2, &height2, &nrChannels2, 0);
 	if (data2)
 	{
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width2, height2, 0, GL_RGB, GL_UNSIGNED_BYTE, data2);
@@ -302,7 +302,7 @@ SceneObject instantiateSphere() {
 
 	// load and generate the texture
 	int width3, height3, nrChannels3;
-	unsigned char* data3 = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/texture3.jpg", &width3, &height3, &nrChannels3, 0);
+	unsigned char* data3 = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/heightmap2.jpg", &width3, &height3, &nrChannels3, 0);
 	if (data3)
 	{
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width3, height3, 0, GL_RGB, GL_UNSIGNED_BYTE, data3);
@@ -323,7 +323,7 @@ SceneObject instantiateSphere() {
 
 	// Object position offset
 	glm::mat4 position = glm::mat4(1.0f);
-	sceneObject.position = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	sceneObject.position = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
 	// rotate 90 degrees on the x-axis
 	sceneObject.position = glm::rotate(sceneObject.position, glm::radians(90.0f), glm::vec3(1, 0, 0));
 
