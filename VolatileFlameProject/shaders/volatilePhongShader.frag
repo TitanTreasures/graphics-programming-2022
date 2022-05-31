@@ -26,7 +26,7 @@ in vec3 worldNormal;
 in vec2 TexCoord;
 in float vertexTextureMixValue;
 
-uniform sampler2D texture1, texture2;
+uniform sampler2D rockTexture, lavaTexture;
 
 void main()
 {
@@ -53,7 +53,6 @@ void main()
    // combined phong light 1
    vec3 light1 = (diffuse + specular) * attenuation;
 
-
    // LIGHT 2:
    // diffuse component for light 2
    vec3 L2 = normalize(light2Position - P.xyz);
@@ -73,7 +72,7 @@ void main()
    vec4 lighting = vec4(ambient + light1 + light2, 1.0);
 
    // mix the textures
-   vec4 textureMix = mix(texture(texture2, TexCoord), texture(texture1, TexCoord), (vertexTextureMixValue * vertexTextureMixValue * vertexTextureMixValue * 100000000.0)-1);
+   vec4 textureMix = mix(texture(lavaTexture, TexCoord), texture(rockTexture, TexCoord), vertexTextureMixValue);
 
    // add the final texture and lighting
    FragColor = textureMix * lighting;

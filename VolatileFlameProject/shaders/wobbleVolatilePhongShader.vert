@@ -11,31 +11,35 @@ out vec3 worldNormal;
 out vec2 TexCoord;
 out float vertexTextureMixValue;
 
-uniform sampler2D heightmap1, heightmap2;
+uniform sampler2D waveHeightmap, noiseHeightmap;
 uniform float time;
 uniform float deltaTime;
+uniform float frequency;
+uniform float amplitude;
 
 vec2 calcTextCoord1HorizScroll = textCoord.xy;
 vec2 calcTextCoord2HorizScroll = textCoord.xy;
 
 void main() {
 
-
    // Horizonal scroll on the texture coordinates
-   calcTextCoord1HorizScroll.x = textCoord.x + time * 0.2;
-   calcTextCoord2HorizScroll.x = textCoord.x - time * 0.1;
+   calcTextCoord1HorizScroll.x = textCoord.x + time * 0.1 * frequency;
+   calcTextCoord2HorizScroll.x = textCoord.x - time * 0.05 * frequency;
    // loop back when outside texture bounds
    if(calcTextCoord1HorizScroll.x > 1.0) calcTextCoord1HorizScroll.x -= 1.0; 
    if(calcTextCoord2HorizScroll.x < 0.0) calcTextCoord2HorizScroll.x += 1.0;
    // get heightmap values in the range 0-1
-   float heightMap1DisplaceValue = texture(heightmap1, calcTextCoord1HorizScroll.xy).r/255;
-   float heightMap2DisplaceValue = texture(heightmap2, calcTextCoord2HorizScroll.xy).r/255;
+   float heightMap1DisplaceValue = texture(waveHeightmap, calcTextCoord1HorizScroll.xy).r/255;
+   float heightMap2DisplaceValue = texture(noiseHeightmap, calcTextCoord2HorizScroll.xy).r/255;
 
    // Pass the values for mixing the textures to the fragment shader
 	vertexTextureMixValue =  ((heightMap1DisplaceValue/2.0 + heightMap2DisplaceValue*2.0)/2);
 
    // calculate displacement
    vec3 displacement = normalize(normal.xyz) * vertexTextureMixValue * 200.0;
+
+   // calculate final texture mixing
+   vertexTextureMixValue = (vertexTextureMixValue * vertexTextureMixValue * vertexTextureMixValue * 100000000.0)-1;
 
    // vertex position in world space (for lighting computation and displacement)
    vec4 P = modelToWorldSpace * vec4(vertex + displacement, 1.0);

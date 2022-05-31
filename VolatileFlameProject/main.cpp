@@ -7,6 +7,9 @@
 #include <math.h>
 #include <shader.h>
 #include <camera.h>
+#include <filesystem>
+#include <string>
+
 
 // structure to hold the info necessary to render an object
 struct SceneObject {
@@ -14,8 +17,6 @@ struct SceneObject {
 	unsigned int vertexCount;   // number of vertices in the object
 	unsigned int indecesCount;  // number of vertices in the object
 	glm::mat4 position;			// position in world space
-	unsigned int texture1, texture2;		// textures
-	unsigned int heightmap1, heightmap2;
 };
 
 // structure to hold lighting info
@@ -64,8 +65,11 @@ void key_input_callback(GLFWwindow* window, int button, int other, int action, i
 void cursor_input_callback(GLFWwindow* window, double posX, double posY);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 
+void bindTextures();
+void setAnimationValues(int freq, int amp);
+void setMaterialUniforms();
 void setLightUniforms();
-
+unsigned int loadTexture(const char* filepath);
 void FPSUpdate();
 
 // global variables we will use to store our objects, shaders, and active shader
@@ -74,8 +78,8 @@ const unsigned int SCR_HEIGHT = 800;
 const char* windowName = "Volatile Flame Project ";
 GLFWwindow* window;
 bool showWireframe = false;
-Shader* phong_shading;
-Shader* phong_shading2;
+Shader* wobbleVolatilePhongShader;
+Shader* pulsingVolatilePhongShader;
 Shader* shader;
 std::vector<SceneObject> sceneObjects;
 double prevTime = 0.0;
@@ -86,6 +90,14 @@ float lastX = (float)SCR_WIDTH / 2.0;
 float lastY = (float)SCR_HEIGHT / 2.0;
 float deltaTime;
 bool isPaused = false; // stop camera movement when GUI is open
+bool rotate = false;
+bool paused = false;
+int frequency = 5, amplitude = 1;
+int tempfrequency, tempamplitude;
+
+// textures
+unsigned int rockTexture, lavaTexture;
+unsigned int waveHeightmap, noiseHeightmap, rockHeightmap;
 
 
 int main()
@@ -126,22 +138,38 @@ int main()
 	}
 
 	// build and compile the shader program
-	phong_shading = new Shader("shaders/phong_shading.vert", "shaders/phong_shading.frag");
-	phong_shading2 = new Shader("shaders/phong_shadingv2.vert", "shaders/phong_shading.frag");
-	shader = phong_shading;
-	//&Shader("shaders/shader.vert", "shaders/color.frag");
+	wobbleVolatilePhongShader = new Shader("shaders/wobbleVolatilePhongShader.vert", "shaders/volatilePhongShader.frag");
+	pulsingVolatilePhongShader = new Shader("shaders/pulsingVolatilePhongShader.vert", "shaders/volatilePhongShader.frag");
+	shader = wobbleVolatilePhongShader;
 
 	// set up the z-buffer
 	glDepthRange(-1, 1); // make the NDC a right handed coordinate system, with the camera pointing towards -z
 	glEnable(GL_DEPTH_TEST); // turn on z-buffer depth test
 	glDepthFunc(GL_LESS); // draws fragments that are closer to the screen in NDC
 
+	// load textures
+	rockTexture = loadTexture("Textures/rockTexture.jpg");
+	lavaTexture = loadTexture("Textures/lavaTexture.jpg");
+	rockHeightmap = loadTexture("Textures/rockHeightmap.jpg");
+	waveHeightmap = loadTexture("Textures/waveHeightmap.jpg");
+	noiseHeightmap = loadTexture("Textures/noiseHeightmap.jpg");
+
+	// assign textures to shaders
+	shader = pulsingVolatilePhongShader;
+	shader->use();
+	glUniform1i(glGetUniformLocation(shader->ID, "rockTexture"), rockTexture);
+	glUniform1i(glGetUniformLocation(shader->ID, "lavaTexture"), lavaTexture);
+	glUniform1i(glGetUniformLocation(shader->ID, "rockHeightmap"), rockHeightmap);
+	
+	shader = wobbleVolatilePhongShader;
+	shader->use();
+	glUniform1i(glGetUniformLocation(shader->ID, "rockTexture"), rockTexture);
+	glUniform1i(glGetUniformLocation(shader->ID, "lavaTexture"), lavaTexture);
+	glUniform1i(glGetUniformLocation(shader->ID, "waveHeightmap"), waveHeightmap);
+	glUniform1i(glGetUniformLocation(shader->ID, "noiseHeightmap"), noiseHeightmap);
+
 	// Create a sphere
 	sceneObjects.push_back(instantiateSphere());
-
-	//Set alpha debug
-	float alpha = 1;
-
 
 	// render loop
 	while (!glfwWindowShouldClose(window)) {
@@ -160,15 +188,13 @@ int main()
 		//setup light setting uniforms
 		setLightUniforms();
 
+		// set values for the animations
+		setAnimationValues(frequency, amplitude);
+
 		// camera position
 		shader->setVec3("camPosition", camera.Position);
 
-		// material uniforms
-		shader->setVec3("reflectionColor", config.reflectionColor);
-		shader->setFloat("ambientReflectance", config.ambientReflectance);
-		shader->setFloat("diffuseReflectance", config.diffuseReflectance);
-		shader->setFloat("specularReflectance", config.specularReflectance);
-		shader->setFloat("specularExponent", config.specularExponent);
+		setMaterialUniforms();
 
 		// camera parameters
 		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
@@ -177,32 +203,28 @@ int main()
 
 		// set viewProjection matrix uniform
 		shader->setMat4("viewProjection", viewProjection);
-		shader->setFloat("delta", deltaTime);
-		shader->setFloat("time", (float)glfwGetTime());
-		shader->setFloat("frequency", 5.0);
-		shader->setFloat("amplitude", 0.5);
-		//TODO: increase freq x2 and ampl x4 after some time for a short cooldown, and then reset.
 
-		//TODO: Implement some noise in the heightmap so lava is not just I/O
+		// update detla and time uniforms
+		if (!isPaused) {
+			shader->setFloat("delta", deltaTime);
+			shader->setFloat("time", (float)glfwGetTime());
+		}
+
+
 
 		for (int i = 0; i < sceneObjects.size(); i++) {
 
 			SceneObject SO = sceneObjects[i];
 
-			glActiveTexture(GL_TEXTURE0 + sceneObjects[i].texture1);
-			glBindTexture(GL_TEXTURE_2D, sceneObjects[i].texture1);
-			glActiveTexture(GL_TEXTURE0 + sceneObjects[i].texture2);
-			glBindTexture(GL_TEXTURE_2D, sceneObjects[i].texture2);
-			glActiveTexture(GL_TEXTURE0 + sceneObjects[i].heightmap1);
-			glBindTexture(GL_TEXTURE_2D, sceneObjects[i].heightmap1);
-			glActiveTexture(GL_TEXTURE0 + sceneObjects[i].heightmap2);
-			glBindTexture(GL_TEXTURE_2D, sceneObjects[i].heightmap2);
+			bindTextures();
 
 			// bind vertex array object
 			glBindVertexArray(sceneObjects[i].VAO);
 
 			// Set the position of the object for this frame
-			//sceneObjects[i].position = glm::rotate(sceneObjects[i].position, glm::radians(deltaTime*40), glm::vec3(0, 0, 1));
+			if (rotate) {
+				sceneObjects[i].position = glm::rotate(sceneObjects[i].position, glm::radians(deltaTime*40), glm::vec3(0, 0, 1));
+			}
 			shader->setMat4("modelToWorldSpace", sceneObjects[i].position);
 
 			// draw geometry
@@ -223,7 +245,6 @@ int main()
 
 void setLightUniforms()
 {
-	// TODO exercise 5 - set the missing uniform variables here
 	// light uniforms
 	shader->setVec3("ambientLightColor", config.ambientLightColor * config.ambientLightIntensity);
 	shader->setVec3("light1Position", config.light1Position);
@@ -232,125 +253,41 @@ void setLightUniforms()
 	shader->setVec3("light2Color", config.light2Color * config.light2Intensity);
 }
 
+void setMaterialUniforms()
+{
+	// material uniforms
+	shader->setVec3("reflectionColor", config.reflectionColor);
+	shader->setFloat("ambientReflectance", config.ambientReflectance);
+	shader->setFloat("diffuseReflectance", config.diffuseReflectance);
+	shader->setFloat("specularReflectance", config.specularReflectance);
+	shader->setFloat("specularExponent", config.specularExponent);
+}
+
+void setAnimationValues(int freq, int amp)
+{
+	shader->setFloat("frequency", freq);
+	shader->setFloat("amplitude", amp);
+}
+
+void bindTextures() {
+	glActiveTexture(GL_TEXTURE0 + lavaTexture);
+	glBindTexture(GL_TEXTURE_2D, lavaTexture);
+	glActiveTexture(GL_TEXTURE0 + rockTexture);
+	glBindTexture(GL_TEXTURE_2D, rockTexture);
+	glActiveTexture(GL_TEXTURE0 + waveHeightmap);
+	glBindTexture(GL_TEXTURE_2D, waveHeightmap);
+	glActiveTexture(GL_TEXTURE0 + noiseHeightmap);
+	glBindTexture(GL_TEXTURE_2D, noiseHeightmap);
+	glActiveTexture(GL_TEXTURE0 + rockHeightmap);
+	glBindTexture(GL_TEXTURE_2D, rockHeightmap);
+}
+
 //inspiration: http://www.songho.ca/opengl/gl_sphere.html
 // creates a cone triangle mesh, uploads it to openGL and returns the VAO associated to the mesh
 SceneObject instantiateSphere() {
 
 	// Create an instance of a SceneObject
 	SceneObject sceneObject;
-
-	// Generate texture. Code from https://learnopengl.com/Getting-started/Textures
-	unsigned int lavaTexture;
-	glGenTextures(1, &lavaTexture);
-	glBindTexture(GL_TEXTURE_2D, lavaTexture);
-
-	// set the texture wrapping/filtering options (on the currently bound texture object)
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	// load and generate the texture
-	int width1, height1, nrChannels1;
-	unsigned char* data1 = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/rock.jpg", &width1, &height1, &nrChannels1, 0);
-	if (data1)
-	{
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width1, height1, 0, GL_RGB, GL_UNSIGNED_BYTE, data1);
-		glGenerateMipmap(GL_TEXTURE_2D);
-	}
-	else
-	{
-		std::cout << "Failed to load texture" << std::endl;
-	}
-	stbi_image_free(data1);
-
-	sceneObject.texture1 = lavaTexture;
-
-	unsigned int rockTexture;
-	glGenTextures(1, &rockTexture);
-	glBindTexture(GL_TEXTURE_2D, rockTexture);
-
-	// set the texture wrapping/filtering options (on the currently bound texture object)
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	// load and generate the texture
-	int width2, height2, nrChannels2;
-	unsigned char* data2 = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/lava.jpg", &width2, &height2, &nrChannels2, 0);
-	if (data2)
-	{
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width2, height2, 0, GL_RGB, GL_UNSIGNED_BYTE, data2);
-		glGenerateMipmap(GL_TEXTURE_2D);
-	}
-	else
-	{
-		std::cout << "Failed to load texture" << std::endl;
-	}
-	stbi_image_free(data2);
-
-	sceneObject.texture2 = rockTexture;
-
-
-	// Load the heightmap texture
-	unsigned int heightMap1;
-	glGenTextures(1, &heightMap1);
-	glBindTexture(GL_TEXTURE_2D, heightMap1);
-
-	// set the texture wrapping/filtering options (on the currently bound texture object)
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	// load and generate the texture
-	int width3, height3, nrChannels3;
-	unsigned char* data3 = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/heightmap1.jpg", &width3, &height3, &nrChannels3, 0);
-	if (data3)
-	{
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width3, height3, 0, GL_RGB, GL_UNSIGNED_BYTE, data3);
-		glGenerateMipmap(GL_TEXTURE_2D);
-	}
-	else
-	{
-		std::cout << "Failed to load heightmap texture" << std::endl;
-	}
-	stbi_image_free(data3);
-	sceneObject.heightmap1 = heightMap1;
-
-	// Load the heightmap texture
-	unsigned int heightMap2;
-	glGenTextures(1, &heightMap2);
-	glBindTexture(GL_TEXTURE_2D, heightMap2);
-
-	// set the texture wrapping/filtering options (on the currently bound texture object)
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	// load and generate the texture
-	int width4, height4, nrChannels4;
-	unsigned char* data4 = stbi_load("C:/Users/TitanTreasures/Documents/Git/graphics-programming-2022/VolatileFlameProject/Textures/heightmap3.jpg", &width4, &height4, &nrChannels4, 0);
-	if (data4)
-	{
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width4, height4, 0, GL_RGB, GL_UNSIGNED_BYTE, data4);
-		glGenerateMipmap(GL_TEXTURE_2D);
-	}
-	else
-	{
-		std::cout << "Failed to load heightmap texture" << std::endl;
-	}
-	stbi_image_free(data4);
-	sceneObject.heightmap2 = heightMap2;
-
-	shader->use();
-	glUniform1i(glGetUniformLocation(shader->ID, "texture1"), sceneObject.texture1);
-	glUniform1i(glGetUniformLocation(shader->ID, "texture2"), sceneObject.texture2);
-	glUniform1i(glGetUniformLocation(shader->ID, "heightmap1"), sceneObject.heightmap1);
-	glUniform1i(glGetUniformLocation(shader->ID, "heightmap2"), sceneObject.heightmap2);
-
 	// Object position offset
 	glm::mat4 position = glm::mat4(1.0f);
 	sceneObject.position = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
@@ -499,6 +436,38 @@ SceneObject instantiateSphere() {
 	return sceneObject;
 }
 
+unsigned int loadTexture(const char* filepath) {
+	std::cout << "Loading texture from file: ";
+	std::cout << filepath;
+	std::cout << " ... ";
+	// Generate texture. Code inspired from https://learnopengl.com/Getting-started/Textures
+	unsigned int texture;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+
+	// set the texture wrapping/filtering options (on the currently bound texture object)
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	// load and generate the texture
+	int width, height, nrChannels;
+	unsigned char* data = stbi_load(filepath, &width, &height, &nrChannels, 0);
+	if (data)
+	{
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+		std::cout << "Complete\n";
+	}
+	else
+	{
+		std::cout << "Failed to load texture" << std::endl;
+	}
+	stbi_image_free(data);
+	return texture;
+}
+
 void processInput(GLFWwindow* window) {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
@@ -558,6 +527,29 @@ void key_input_callback(GLFWwindow* window, int button, int other, int action, i
 		{
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
+	}
+	if (button == GLFW_KEY_1 && action == GLFW_PRESS) {
+		shader = wobbleVolatilePhongShader;
+		std::cout << "Wobble Shader Active\n";
+	}
+	if (button == GLFW_KEY_2 && action == GLFW_PRESS) {
+		shader = pulsingVolatilePhongShader;
+		std::cout << "Pulsing Shader Active\n";
+	}
+	if (button == GLFW_KEY_R && action == GLFW_PRESS) {
+		rotate = !rotate;
+	}
+	if (button == GLFW_KEY_RIGHT && action == GLFW_PRESS) {
+		frequency++;
+	}
+	if (button == GLFW_KEY_LEFT && action == GLFW_PRESS) {
+		if(frequency > 0)frequency--;
+	}
+	if (button == GLFW_KEY_UP && action == GLFW_PRESS) {
+		amplitude++;
+	}
+	if (button == GLFW_KEY_DOWN && action == GLFW_PRESS) {
+		if (amplitude > 0)amplitude--;
 	}
 }
 

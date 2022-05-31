@@ -65,3 +65,4 @@ ENDIF()
 IF(EXISTS ${CMAKE_SOURCE_DIR}/assignments)
     add_subdirectory(${CMAKE_SOURCE_DIR}/assignments)
 ENDIF()
+

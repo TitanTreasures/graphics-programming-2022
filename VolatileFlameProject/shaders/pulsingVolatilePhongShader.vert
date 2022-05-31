@@ -11,18 +11,27 @@ out vec3 worldNormal;
 out vec2 TexCoord;
 out float vertexTextureMixValue;
 
-uniform sampler2D heightmap1;
+uniform sampler2D rockHeightmap;
 uniform float time;
 uniform float frequency;
 uniform float amplitude;
+
 void main() {
 
-	vertexTextureMixValue =  (texture(heightmap1, textCoord.xy).r/255)*(sin(time * frequency) * amplitude) * 100;
+   // Pass the values for mixing the textures to the fragment shader
+	vertexTextureMixValue =  (texture(rockHeightmap, textCoord.xy).r/255)*(sin(time * frequency) * amplitude) * 100;
 	
-   // vertex in world space (for lighting computat ion)
-   vec3 N = normalize(modelToWorldSpace * vec4(normal, 0.0)).xyz;
-   vec4 P = modelToWorldSpace * vec4(vertex + normalize(normal.xyz) * vertexTextureMixValue, 1.0);
+	// calculate displacement
+	vec3 displacement = normalize(normal.xyz) * vertexTextureMixValue;
+
+	// calculate final texture mixing
+	vertexTextureMixValue = 4* vertexTextureMixValue + 0.5;
+
+   // vertex in world space (for lighting computation)
+   vec4 P = modelToWorldSpace * vec4(vertex + displacement, 1.0);
    // normal in world space (for lighting computation)
+   vec3 N = normalize(modelToWorldSpace * vec4(normal, 0.0)).xyz;
+
    // Pass the positions in world space to the fragment shader
    worldPos = P;
    worldNormal = N;
