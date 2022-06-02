@@ -19,7 +19,7 @@ uniform float amplitude;
 void main() {
 
    // Pass the values for mixing the textures to the fragment shader
-	vertexTextureMixValue =  (texture(rockHeightmap, textCoord.xy).r/255)*(sin(time * frequency) * amplitude) * 100;
+	vertexTextureMixValue =  (texture(rockHeightmap, textCoord.xy).r/255)*(sin(time * frequency) * (amplitude/20)) * 200;
 	
 	// calculate displacement
 	vec3 displacement = normalize(normal.xyz) * vertexTextureMixValue;

@@ -9,7 +9,7 @@
 #include <camera.h>
 #include <filesystem>
 #include <string>
-
+#include <iomanip>
 
 // structure to hold the info necessary to render an object
 struct SceneObject {
@@ -92,7 +92,7 @@ float deltaTime;
 bool isPaused = false; // stop camera movement when GUI is open
 bool rotate = false;
 bool paused = false;
-int frequency = 5, amplitude = 1;
+int frequency = 5, amplitude = 12;
 int tempfrequency, tempamplitude;
 
 // textures
@@ -167,6 +167,9 @@ int main()
 	glUniform1i(glGetUniformLocation(shader->ID, "lavaTexture"), lavaTexture);
 	glUniform1i(glGetUniformLocation(shader->ID, "waveHeightmap"), waveHeightmap);
 	glUniform1i(glGetUniformLocation(shader->ID, "noiseHeightmap"), noiseHeightmap);
+
+	// Print frequency and amplitude values
+	std::cout << "Frequency: " << frequency << " Amplitude: " << amplitude << "\n";
 
 	// Create a sphere
 	sceneObjects.push_back(instantiateSphere());
@@ -516,6 +519,7 @@ void key_input_callback(GLFWwindow* window, int button, int other, int action, i
 	// controls pause mode
 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
 		isPaused = !isPaused;
+		std::cout << std::boolalpha << "Paused: " << isPaused << "\n";
 		glfwSetInputMode(window, GLFW_CURSOR, isPaused ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
 	}
 	if (button == GLFW_KEY_E && action == GLFW_PRESS) {
@@ -527,6 +531,7 @@ void key_input_callback(GLFWwindow* window, int button, int other, int action, i
 		{
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
+		std::cout << std::boolalpha << "Wireframe Active: " << showWireframe << "\n";
 	}
 	if (button == GLFW_KEY_1 && action == GLFW_PRESS) {
 		shader = wobbleVolatilePhongShader;
@@ -538,18 +543,23 @@ void key_input_callback(GLFWwindow* window, int button, int other, int action, i
 	}
 	if (button == GLFW_KEY_R && action == GLFW_PRESS) {
 		rotate = !rotate;
+		std::cout << std::boolalpha << "rotation active: " << rotate << "\n";
 	}
 	if (button == GLFW_KEY_RIGHT && action == GLFW_PRESS) {
 		frequency++;
+		std::cout << "Frequency: " << frequency << " Amplitude: " << amplitude << "\n";
 	}
 	if (button == GLFW_KEY_LEFT && action == GLFW_PRESS) {
 		if(frequency > 0)frequency--;
+		std::cout << "Frequency: " << frequency << " Amplitude: " << amplitude << "\n";
 	}
 	if (button == GLFW_KEY_UP && action == GLFW_PRESS) {
 		amplitude++;
+		std::cout << "Frequency: " << frequency << " Amplitude: " << amplitude << "\n";
 	}
 	if (button == GLFW_KEY_DOWN && action == GLFW_PRESS) {
 		if (amplitude > 0)amplitude--;
+		std::cout << "Frequency: " << frequency << " Amplitude: " << amplitude << "\n";
 	}
 }
 
