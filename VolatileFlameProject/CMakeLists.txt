@@ -36,7 +36,7 @@ target_include_directories(${output_file} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 ## copy shaders folder to build folder
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/shaders DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/Textures DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/textures DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 ## copy shaders again every time the current target gets compiled
 ## (may require manual compilation if you modify shaders without modifying the C++ source)
